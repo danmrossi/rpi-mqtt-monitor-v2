@@ -700,9 +700,17 @@ def send_sensor_data_to_home_assistant(entity_id, state, attributes):
         "state": state,
         "attributes": attributes
     }
-    response = requests.post(url, headers=headers, json=data)
-    if response.status_code not in [200, 201]:
-        logger.error("Failed to update %s: %s - %s", entity_id, response.status_code, response.text)
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        if response.status_code not in [200, 201]:
+            logger.error(
+                "Failed to update %s: %s - %s",
+                entity_id,
+                response.status_code,
+                response.text,
+            )
+    except requests.RequestException as exc:
+        logger.error("Error sending %s to Home Assistant: %s", entity_id, exc)
 
 
 def publish_to_mqtt(monitored_values):
@@ -1006,7 +1014,7 @@ def uninstall_script():
 
 
 def on_message(client, userdata, msg):
-    global exit_flag, thread1, thread2
+    global thread1, thread2
     logger.info("Received message: %s", msg.payload.decode())
     if msg.payload.decode() == "install":
         def update_and_exit():
@@ -1014,7 +1022,7 @@ def on_message(client, userdata, msg):
             update.do_update(script_dir, version, git_update=True, config_update=True)
             logger.info("Update completed. Stopping MQTT client loop...")
             client.loop_stop()  # Stop the MQTT client loop
-            logger.info("Setting exit flag...")
+            logger.info("Signalling threads to stop...")
             stop_event.set()  # Signal the threads to stop
             if thread1 is not None:
                 thread1.join()  # Wait for thread1 to finish
@@ -1043,7 +1051,6 @@ def on_message(client, userdata, msg):
             check=True
         )
 
-exit_flag = False
 stop_event = threading.Event()
 thread1 = None
 thread2 = None

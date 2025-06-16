@@ -10,9 +10,15 @@ logger = logging.getLogger(__name__)
 
 
 def safe_literal_eval(node):
+    """Safely evaluate an AST node.
+
+    Any :class:`ValueError` or :class:`SyntaxError` raised by
+    :func:`ast.literal_eval` will result in ``None`` being returned
+    instead of propagating the exception.
+    """
     try:
         return ast.literal_eval(node)
-    except ValueError:
+    except (ValueError, SyntaxError):
         return None
 
 
@@ -32,8 +38,12 @@ def update_config(current_config, example_config):
 
     if missing_assignments:
         with open(current_config, 'ab+') as f:  # Open the file in binary mode
-            f.seek(-1, os.SEEK_END)  # Move the cursor to the last character
-            last_char = f.read(1)  # Read the last character
+            f.seek(0, os.SEEK_END)
+            if f.tell() > 0:
+                f.seek(-1, os.SEEK_END)
+                last_char = f.read(1)
+            else:
+                last_char = b''
 
         # If the last character is not a newline, write a newline
         if last_char != b'\n':
