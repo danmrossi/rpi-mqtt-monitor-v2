@@ -36,6 +36,11 @@ print_yellow(){
   tput sgr 0
 }
 
+# Escape special characters for sed replacement
+escape_sed() {
+  printf '%s' "$1" | sed -e 's/[\/&]/\\&/g'
+}
+
 check_and_install_pip(){
   pip_ver=$(${python} -m pip --version 2>&1);
   if [[ "$pip_ver" == *"No"* ]]; then
@@ -84,36 +89,41 @@ mqtt_configuration(){
   
   printf "Enter mqtt_host: "
   read HOST
-  sed -i "s/ip address or host/${HOST}/" src/config.py
+  HOST_ESC=$(escape_sed "$HOST")
+  sed -i "s|ip address or host|${HOST_ESC}|" src/config.py
 
   printf "Enter mqtt_user: "
   read USER
-  sed -i "s/username/${USER}/" src/config.py
+  USER_ESC=$(escape_sed "$USER")
+  sed -i "s|username|${USER_ESC}|" src/config.py
 
   printf "Enter mqtt_password: "
   read PASS
-  sed -i "s/\"password/\"${PASS}/" src/config.py
+  PASS_ESC=$(escape_sed "$PASS")
+  sed -i "s|\"password|\"${PASS_ESC}|" src/config.py
 
   printf "Enter mqtt_port (default is 1883): "
   read PORT
   if [ -z "$PORT" ]; then
     PORT=1883
   fi
-  sed -i "s/1883/${PORT}/" src/config.py
+  sed -i "s|1883|${PORT}|" src/config.py
 
   printf "Enter mqtt_topic_prefix (default is rpi-MQTT-monitor-v2): "
   read TOPIC
   if [ -z "$TOPIC" ]; then
     TOPIC=rpi-MQTT-monitor-v2
   fi
-  sed -i "s/rpi-MQTT-monitor-v2/${TOPIC}/" src/config.py
+  TOPIC_ESC=$(escape_sed "$TOPIC")
+  sed -i "s|rpi-MQTT-monitor-v2|${TOPIC_ESC}|" src/config.py
 
   printf "Enter mqtt_uns_structure (default is empty): "
   read UNS
   if [[ -n "$UNS" && ! "$UNS" =~ /$ ]]; then
     UNS="${UNS}/"
   fi
-  sed -i "s/mqtt_uns_structure = .*/mqtt_uns_structure = '${UNS}'/" src/config.py
+  UNS_ESC=$(escape_sed "$UNS")
+  sed -i "s|mqtt_uns_structure = .*|mqtt_uns_structure = '${UNS_ESC}'|" src/config.py
   
   printf "Do you need to control your monitors? (default is No): "
   read CONTROL
@@ -129,11 +139,13 @@ hass_api_configuration(){
     if [ -z "$HA_URL" ]; then
       HA_URL="http://localhost:8123"
     fi
-    sed -i "s|your_hass_host|${HA_URL}|" src/config.py
+    HA_URL_ESC=$(escape_sed "$HA_URL")
+    sed -i "s|your_hass_host|${HA_URL_ESC}|" src/config.py
 
     printf "Enter Home Assistant API Token: "
     read HA_TOKEN
-    sed -i "s|your_hass_token|${HA_TOKEN}|" src/config.py
+    HA_TOKEN_ESC=$(escape_sed "$HA_TOKEN")
+    sed -i "s|your_hass_token|${HA_TOKEN_ESC}|" src/config.py
     hass_api=" --hass_api"
     finish_message="Home Assistant API"
 }
@@ -152,7 +164,8 @@ update_config(){
   cp src/config.py.example src/config.py
 
   user=$(whoami)
-  sed -i "s/os_user_to_be_replaced/${user}/" src/config.py
+  user_ESC=$(escape_sed "$user")
+  sed -i "s|os_user_to_be_replaced|${user_ESC}|" src/config.py
 
   echo "Do you want to use Home Assistant API or MQTT?"
   echo "1) Home Assistant API"
