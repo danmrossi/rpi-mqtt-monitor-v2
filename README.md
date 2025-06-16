@@ -1,4 +1,4 @@
-# Raspberry Pi MQTT Monitor
+# Raspberry Pi MQTT Monitor V2
 
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/danmrossi/rpi-mqtt-monitor-v2)](https://github.com/danmrossi/rpi-mqtt-monitor-v2/releases)
 [![GitHub repo size](https://img.shields.io/github/repo-size/danmrossi/rpi-mqtt-monitor-v2)](https://github.com/danmrossi/rpi-mqtt-monitor-v2)
