@@ -22,12 +22,16 @@ import glob
 import requests
 import configparser
 import psutil
+import logging
 #import external sensor lib only if one uses external sensors
 if config.ext_sensors:
     # append folder ext_sensor_lib
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ext_sensor_lib')))
     import ds18b20
     from sht21 import SHT21
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 configlanguage = configparser.ConfigParser()
@@ -40,20 +44,19 @@ def get_translation(key):
 
 def check_wifi_signal(format):
     try:
-        full_cmd =  "ls /sys/class/ieee80211/*/device/net/"
-        interface = subprocess.Popen(full_cmd, shell=True, stdout=subprocess.PIPE).communicate()[0].strip().decode("utf-8")
-        full_cmd = "/sbin/iwconfig {} | grep -i quality".format(interface)
-        wifi_signal = subprocess.Popen(full_cmd, shell=True, stdout=subprocess.PIPE).communicate()[0]
-
+        interfaces = glob.glob('/sys/class/ieee80211/*/device/net/*')
+        interface = os.path.basename(interfaces[0]) if interfaces else None
+        if not interface:
+            raise RuntimeError('No Wi-Fi interface found')
+        result = subprocess.run(['/sbin/iwconfig', interface], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+        wifi_output = result.stdout
         if format == 'dbm':
-            wifi_signal = wifi_signal.decode("utf-8").strip().split(' ')[4].split('=')[1]
+            wifi_signal = wifi_output.strip().split(' ')[4].split('=')[1]
         else:
-            wifi_signal = wifi_signal.decode("utf-8").strip().split(' ')[1].split('=')[1].split('/')[0]
-            wifi_signal = round((int(wifi_signal) / 70)* 100)
-
+            quality = wifi_output.strip().split(' ')[1].split('=')[1].split('/')[0]
+            wifi_signal = round((int(quality) / 70) * 100)
     except Exception:
         wifi_signal = None if config.use_availability else 0
-
     return wifi_signal
 
 
@@ -72,68 +75,55 @@ def check_cpu_load():
 
 def check_voltage():
     try:
-        full_cmd = "vcgencmd measure_volts | cut -f2 -d= | sed 's/000//'"
-        voltage = subprocess.Popen(full_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0]
-        voltage = voltage.strip()[:-1]
+        result = subprocess.run(['vcgencmd', 'measure_volts'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+        voltage = result.stdout.strip().split('=')[1].rstrip('V')
     except Exception:
         voltage = None if config.use_availability else 0
-
-    return voltage.decode('utf8')
-
+    return voltage
 
 def check_swap():
-    full_cmd = "free | grep -i swap | awk 'NR == 1 {if($2 > 0) {print $3/$2*100} else {print 0}}'"
-    swap = subprocess.Popen(full_cmd, shell=True, stdout=subprocess.PIPE).communicate()[0]
-    swap = round(float(swap.decode("utf-8").replace(",", ".")), 1)
-
+    try:
+        result = subprocess.run(['free'], stdout=subprocess.PIPE, text=True, check=True)
+        for line in result.stdout.splitlines():
+            if line.lower().startswith('swap'):
+                parts = line.split()
+                if int(parts[1]) > 0:
+                    swap = float(parts[2]) / float(parts[1]) * 100
+                else:
+                    swap = 0.0
+                break
+        else:
+            swap = 0.0
+        swap = round(swap, 1)
+    except Exception:
+        swap = None if config.use_availability else 0
     return swap
 
-
 def check_memory():
-    full_cmd = 'free -b | awk \'NR==2 {printf "%.2f\\n", $3/$2 * 100}\''
-    memory = subprocess.Popen(full_cmd, shell=True, stdout=subprocess.PIPE).communicate()[0]
-
-    if memory:
-        memory = round(float(memory.decode("utf-8").replace(",", ".")))
-    else:
+    try:
+        result = subprocess.run(['free','-b'], stdout=subprocess.PIPE, text=True, check=True)
+        parts = result.stdout.splitlines()[1].split()
+        memory = round(float(parts[2]) / float(parts[1]) * 100)
+    except Exception:
         memory = 0
-
     return memory
-
 
 def check_rpi_power_status():
     try:
-        full_cmd = "vcgencmd get_throttled | cut -d= -f2"
-        throttled = subprocess.Popen(full_cmd, shell=True, stdout=subprocess.PIPE).communicate()[0]
-        throttled = throttled.decode('utf-8').strip()
+        result = subprocess.run(['vcgencmd', 'get_throttled'], stdout=subprocess.PIPE, text=True, check=True)
+        throttled = result.stdout.split('=')[1].strip()
         throttled_val = int(throttled, 16)
-
         if throttled_val & 1<<0:
-            return "Under-voltage"
+            return 'Under-voltage'
         if throttled_val & 1<<3:
-            return "Soft temperature limit"
+            return 'Soft temperature limit'
         if throttled_val & 1<<1:
-            return "ARM frequency capped"
+            return 'ARM frequency capped'
         if throttled_val & 1<<2:
-            return "Throttled"
-
-        # These are "previous" statuses here for completeness
-        # Home Assistant has the history so do not report them
-        #
-        #if throttled_val & 1<<16:
-        #    return "Previous under-voltage"
-        #if throttled_val & 1<<17:
-        #    return "Previous ARM frequency cap"
-        #if throttled_val & 1<<18:
-        #    return "Previous throttling"
-        #if throttled_val & 1<<19:
-        #    return "Previous soft temperature limit"
-
-        return "OK"
-
+            return 'Throttled'
+        return 'OK'
     except Exception as e:
-        return "Error: " + str(e)
-
+        return 'Error: ' + str(e)
 
 def check_service_file_exists():
     service_file_path = "/etc/systemd/system/rpi-mqtt-monitor-v2.service"
@@ -152,7 +142,7 @@ def check_crontab_entry(script_name="rpi-cpu2mqtt.py"):
         # Check if the script name is in the crontab output
         return script_name in result.stdout
     except Exception as e:
-        print(f"Error checking crontab: {e}")
+        logger.error("Error checking crontab: %s", e)
         return False
     
 
@@ -180,7 +170,7 @@ def read_ext_sensors():
             item[3] = temp
             # in case that some error occurs during reading, we get -300
             if temp==-300:
-                print ("Error while reading sensor %s, %s" % (item[1], item[2]))
+                logger.error("Error while reading sensor %s, %s", item[1], item[2])
                 if config.use_availability:
                     item[3] = None
         if item[1] == "sht21":
@@ -193,7 +183,7 @@ def read_ext_sensors():
                     item[3] = [temp, hum]
             # in case we have any problems to read the sensor, we continue and keep default values
             except Exception:
-                print ("Error while reading sensor %s" % item[1])
+                logger.error("Error while reading sensor %s", item[1])
                 if config.use_availability:
                     item[3] = [None, None]
     #print (ext_sensors)
@@ -215,79 +205,77 @@ def check_cpu_temp():
         else:
             raise ValueError("CPU temperature sensor not found.")
 
-        return round(cpu_temp, 2) 
+        return round(cpu_temp, 2)
     except Exception as e:
-        print(f"Error reading CPU temperature: {e}")
+        logger.error("Error reading CPU temperature: %s", e)
         return None if config.use_availability else 0
 
 
 def check_sys_clock_speed():
-    full_cmd = "awk '{printf (\"%0.0f\",$1/1000); }' </sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq"
-    byte_data = subprocess.Popen(full_cmd, shell=True, stdout=subprocess.PIPE).communicate()[0]
-    sys_clock_speed = int(byte_data.decode("utf-8").strip())
-    return sys_clock_speed
+    try:
+        with open('/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq') as f:
+            freq = int(f.read().strip())
+        return freq // 1000
+    except Exception as e:
+        logger.error("Error reading system clock speed: %s", e)
+        return None if config.use_availability else 0
 
 
 def check_uptime(format):
     if format == 'timestamp':
-        full_cmd = "uptime -s"
-        tz_cmd = "date +%z"
-        tz_str = subprocess.Popen(tz_cmd, shell=True, stdout=subprocess.PIPE).communicate()[0].decode('utf-8').strip()
-        timestamp_str = subprocess.Popen(full_cmd, shell=True, stdout=subprocess.PIPE).communicate()[0].decode('utf-8').strip()
+        tz_str = subprocess.run(['date','+%z'], stdout=subprocess.PIPE, text=True, check=True).stdout.strip()
+        timestamp_str = subprocess.run(['uptime','-s'], stdout=subprocess.PIPE, text=True, check=True).stdout.strip()
         timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
-        iso_timestamp = timestamp.isoformat() + tz_str  # Append correct offset to indicate `local` time
-        return iso_timestamp
+        return timestamp.isoformat() + tz_str
     else:
-        full_cmd = "awk '{print int($1"+format+")}' /proc/uptime"
-
-    return int(subprocess.Popen(full_cmd, shell=True, stdout=subprocess.PIPE).communicate()[0])
-
+        with open('/proc/uptime') as f:
+            uptime_seconds = float(f.read().split()[0])
+        return int(uptime_seconds)
 
 def check_model_name():
-   full_cmd = "cat /sys/firmware/devicetree/base/model"
-   model_name = subprocess.Popen(full_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0].decode("utf-8")
-   if model_name == '':
-        full_cmd = "cat /proc/cpuinfo  | grep 'name'| uniq"
-        model_name = subprocess.Popen(full_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0].decode("utf-8")
-        try:
-            model_name = model_name.split(':')[1].replace('\n', '')
-        except Exception:
-            model_name = None if config.use_availability else 'Unknown'
-
-   return model_name
-
+    try:
+        with open('/sys/firmware/devicetree/base/model') as f:
+            model_name = f.read().strip()
+        if not model_name:
+            with open('/proc/cpuinfo') as f:
+                for line in f:
+                    if 'name' in line.lower():
+                        model_name = line.split(':')[1].strip()
+                        break
+    except Exception:
+        model_name = None if config.use_availability else 'Unknown'
+    return model_name
 
 def check_rpi5_fan_speed():
-   full_cmd = "cat /sys/devices/platform/cooling_fan/hwmon/*/fan1_input"
-   rpi5_fan_speed = subprocess.Popen(full_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0].decode("utf-8").strip()
-
-   return rpi5_fan_speed
-
+    try:
+        paths = glob.glob('/sys/devices/platform/cooling_fan/hwmon/*/fan1_input')
+        if not paths:
+            return None if config.use_availability else '0'
+        with open(paths[0]) as f:
+            return f.read().strip()
+    except Exception:
+        return None if config.use_availability else '0'
 
 def get_os():
-    full_cmd = 'cat /etc/os-release | grep -i pretty_name'
-    pretty_name = subprocess.Popen(full_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0].decode("utf-8")
     try:
-        pretty_name = pretty_name.split('=')[1].replace('"', '').replace('\n', '')
+        with open('/etc/os-release') as f:
+            for line in f:
+                if line.startswith('PRETTY_NAME='):
+                    return line.split('=',1)[1].strip().strip('"')
     except Exception:
-        pretty_name = None if config.use_availability else 'Unknown'
-        
-    return(pretty_name)
-
+        return None if config.use_availability else 'Unknown'
 
 def get_manufacturer():
     try:
         if 'Raspberry' not in check_model_name():
-            full_cmd = "cat /proc/cpuinfo  | grep 'vendor'| uniq"
-            pretty_name = subprocess.Popen(full_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0].decode("utf-8")
-            pretty_name = pretty_name.split(':')[1].replace('\n', '')
+            with open('/proc/cpuinfo') as f:
+                for line in f:
+                    if 'vendor' in line.lower():
+                        return line.split(':')[1].strip()
         else:
-            pretty_name = 'Raspberry Pi'
+            return 'Raspberry Pi'
     except Exception:
-        pretty_name = None if config.use_availability else 'Unknown'
-        
-    return(pretty_name)
-
+        return None if config.use_availability else 'Unknown'
 
 def check_git_update(script_dir):
     remote_version = update.check_git_version_remote(script_dir)
@@ -306,11 +294,14 @@ def check_git_update(script_dir):
 
 
 def check_git_version(script_dir):
-    full_cmd = "/usr/bin/git -C {} describe --tags `/usr/bin/git -C {} rev-list --tags --max-count=1`".format(script_dir, script_dir)
-    git_version = subprocess.Popen(full_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0].decode("utf-8").replace('\n', '')
-
-    return(git_version)
-
+    try:
+        rev = subprocess.run(['/usr/bin/git', '-C', script_dir, 'rev-list', '--tags', '--max-count=1'], stdout=subprocess.PIPE, text=True, check=True).stdout.strip()
+        result = subprocess.run(['/usr/bin/git', '-C', script_dir, 'describe', '--tags', rev], stdout=subprocess.PIPE, text=True, check=True)
+        git_version = result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        logger.error('Error getting git version: %s', e)
+        git_version = ''
+    return git_version
 
 def get_network_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -334,12 +325,12 @@ def get_mac_address():
 def get_apt_updates():
     try:
         subprocess.run(['sudo', 'apt', 'update'], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        full_cmd = "apt-get -q -y --ignore-hold --allow-change-held-packages --allow-unauthenticated -s dist-upgrade | /bin/grep ^Inst | wc -l"
-        result = subprocess.run(full_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        
-        updates_count = int(result.stdout.strip())
+        cmd = ['apt-get', '-q', '-y', '--ignore-hold', '--allow-change-held-packages', '--allow-unauthenticated', '-s', 'dist-upgrade']
+        result = subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        grep = subprocess.run(['grep', '^Inst'], input=result.stdout, text=True, stdout=subprocess.PIPE)
+        updates_count = len([line for line in grep.stdout.splitlines() if line])
     except Exception as e:
-        print(f"Error checking for updates: {e}")
+        logger.error("Error checking for updates: %s", e)
         updates_count = None if config.use_availability else 0
 
     return updates_count
@@ -350,7 +341,7 @@ def get_hwmon_device_name(hwmon_path):
         with open(os.path.join(hwmon_path, 'name'), 'r') as f:
             return f.read().strip()
     except Exception as e:
-        print(f"Error reading name for {hwmon_path}: {e}")
+        logger.error("Error reading name for %s: %s", hwmon_path, e)
         return None
 
 
@@ -362,7 +353,7 @@ def get_hwmon_temp(hwmon_path):
                 temp = int(tf.read().strip()) / 1000.0
                 return temp
     except Exception as e:
-        print(f"Error reading temperature for {hwmon_path}: {e}")
+        logger.error("Error reading temperature for %s: %s", hwmon_path, e)
         return None
 
 
@@ -435,7 +426,7 @@ def print_measured_values(monitored_values):
 
 :: Release notes {}: 
 {}""".format(os.path.dirname(script_dir), remote_version, get_release_notes(remote_version))
-    print(output)
+    logger.info("\n%s", output)
     
 
 def extract_text(html_string):
@@ -604,21 +595,21 @@ def config_json(what_config, device="0", hass_api=False):
 def create_mqtt_client():
     def on_log(client, userdata, level, buf):
         if level == paho.MQTT_LOG_ERR:
-            print("MQTT error:", buf)
+            logger.error("MQTT error: %s", buf)
 
     def on_connect(client, userdata, flags, rc):
         if rc == 0:
-            print("MQTT connected")
+            logger.info("MQTT connected")
             # (Re-)subscribe to command topic on every connect
             cmd_topic = f"{config.mqtt_discovery_prefix}/update/{hostname}/command"
             client.subscribe(cmd_topic)
-            print(f"Subscribed to command topic: {cmd_topic}")
+            logger.info("Subscribed to command topic: %s", cmd_topic)
         else:
-            print("Error: connect failed, rc=", rc)
+            logger.error("Error: connect failed, rc=%s", rc)
 
     def on_disconnect(client, userdata, rc):
         if rc != 0:
-            print(f"MQTT disconnected (rc={rc}), will auto-reconnect…")
+            logger.warning("MQTT disconnected (rc=%s), will auto-reconnect…", rc)
 
         # Persistent session + auto-re-subscribe on reconnect
     client = paho.Client(
@@ -637,7 +628,7 @@ def create_mqtt_client():
         # blocking connect; loop_forever handles retries
         client.connect(config.mqtt_host, int(config.mqtt_port), keepalive=60)
     except Exception as e:
-        print("Error connecting to MQTT broker:", e)
+        logger.error("Error connecting to MQTT broker: %s", e)
         return None
 
     return client
@@ -645,7 +636,7 @@ def create_mqtt_client():
 def publish_update_status_to_mqtt(git_update, apt_updates):
     client = create_mqtt_client()
     if client is None:
-        print("Error: Unable to connect to MQTT broker")
+        logger.error("Error: Unable to connect to MQTT broker")
         return
 
     client.loop_start()
@@ -705,10 +696,8 @@ def send_sensor_data_to_home_assistant(entity_id, state, attributes):
         "attributes": attributes
     }
     response = requests.post(url, headers=headers, json=data)
-    if response.status_code in [200, 201]:
-        pass
-    else:
-        print(f"Failed to update {entity_id}: {response.status_code} - {response.text}")
+    if response.status_code not in [200, 201]:
+        logger.error("Failed to update %s: %s - %s", entity_id, response.status_code, response.text)
 
 
 def publish_to_mqtt(monitored_values):
@@ -859,16 +848,16 @@ def parse_arguments():
     if args.version:
         installed_version = config.version
         latest_versino = update.check_git_version_remote(script_dir).strip()
-        print("Installed version: " + installed_version)
-        print("Latest version: " + latest_versino)
+        logger.info("Installed version: %s", installed_version)
+        logger.info("Latest version: %s", latest_versino)
         if installed_version != latest_versino:
-            print("Update available")
+            logger.info("Update available")
         else:
-            print("No update available")
+            logger.info("No update available")
         exit()
 
     if args.hass_wake:
-        hass_config = """Add this to your Home Assistant switches.yaml file: 
+        hass_config = """Add this to your Home Assistant switches.yaml file:
 
   - platform: wake_on_lan
     mac: "{}"
@@ -879,8 +868,8 @@ def parse_arguments():
       data:
         topic: "{}/update/{}/command"
         payload: "shutdown"
-    """.format(get_mac_address(), get_network_ip(), hostname, config.mqtt_discovery_prefix, hostname )
-        print(hass_config)
+    """.format(get_mac_address(), get_network_ip(), hostname, config.mqtt_discovery_prefix, hostname)
+        logger.info("%s", hass_config)
         exit()
 
     return args
@@ -949,25 +938,23 @@ def gather_and_send_info():
             # the only options are "a" for append or "w" for (over)write
             # check if one of this options is defined
             if config.output_mode not in ["a", "w"]:
-                print("Error, output_type not known. Default w is set.")
+                logger.warning("Error, output_type not known. Default w is set.")
                 config.output_type = "w"
             try:
-                # open the text file
-                output_file = open(config.output_filename, config.output_mode)
                 # read what should be written into the textfile
                 # we need to define this is a function, otherwise the values are not updated and default values are taken
                 output_content = config.get_content_outputfile()
-                output_file.write(output_content)
-                output_file.close()
+                with open(config.output_filename, config.output_mode) as output_file:
+                    output_file.write(output_content)
             except Exception as e:
-                print("Error writing to output file:", e)
+                logger.error("Error writing to output file: %s", e)
 
         if args.hass_api:
             if config.hass_host != "your_hass_host" and config.hass_token != "your_hass_token":
                 publish_to_hass_api(monitored_values)
             else:
-                print("Error: Home Assistant API host or token not configured.")
-                sys.exit(1) 
+                logger.error("Error: Home Assistant API host or token not configured.")
+                sys.exit(1)
         else:
             if config.mqtt_host != "ip address or host":
                 if hasattr(config, 'group_messages') and config.group_messages:
@@ -1000,29 +987,29 @@ def uninstall_script():
     script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../remote_install.sh")
     
     if not os.path.exists(script_path):
-        print("Error: remote_install.sh script not found.")
+        logger.error("Error: remote_install.sh script not found.")
         return
 
     try:
         # Run the uninstall command
         subprocess.run(["bash", script_path, "uninstall"], check=True)
-        print("Uninstallation process completed.")
+        logger.info("Uninstallation process completed.")
     except subprocess.CalledProcessError as e:
-        print(f"Error during uninstallation: {e}")
+        logger.error("Error during uninstallation: %s", e)
     except Exception as e:
-        print(f"Unexpected error: {e}")
+        logger.error("Unexpected error: %s", e)
 
 
 def on_message(client, userdata, msg):
     global exit_flag, thread1, thread2
-    print("Received message: ", msg.payload.decode())
+    logger.info("Received message: %s", msg.payload.decode())
     if msg.payload.decode() == "install":
         def update_and_exit():
             version = update.check_git_version_remote(script_dir).strip()
             update.do_update(script_dir, version, git_update=True, config_update=True)
-            print("Update completed. Stopping MQTT client loop...")
+            logger.info("Update completed. Stopping MQTT client loop...")
             client.loop_stop()  # Stop the MQTT client loop
-            print("Setting exit flag...")
+            logger.info("Setting exit flag...")
             stop_event.set()  # Signal the threads to stop
             if thread1 is not None:
                 thread1.join()  # Wait for thread1 to finish
@@ -1033,19 +1020,19 @@ def on_message(client, userdata, msg):
         update_thread = threading.Thread(target=update_and_exit)
         update_thread.start()
     elif msg.payload.decode() == "restart":
-        print("Restarting the system...")
+        logger.info("Restarting the system...")
         subprocess.run(["sudo", "reboot"], check=True)
     elif msg.payload.decode() == "shutdown":
-        print("Shutting down the system...")
+        logger.info("Shutting down the system...")
         subprocess.run(["sudo", "shutdown", "now"], check=True)
     elif msg.payload.decode() == "display_off":
-        print("Turn off display")
+        logger.info("Turn off display")
         subprocess.run(
             ["su", "-l", config.os_user, "-c", "xset -display :0 dpms force off"],
             check=True
         )
     elif msg.payload.decode() == "display_on":
-        print("Turn on display")
+        logger.info("Turn on display")
         subprocess.run(
             ["su", "-l", config.os_user, "-c", "xset -display :0 dpms force on"],
             check=True
@@ -1084,7 +1071,7 @@ if __name__ == '__main__':
                 "0", qos=config.qos, retain=config.retain
             )
             client.subscribe(f"{config.mqtt_discovery_prefix}/update/{hostname}/command")
-            print(f"Listening to topic: {config.mqtt_discovery_prefix}/update/{hostname}/command")
+            logger.info("Listening to topic: %s/update/%s/command", config.mqtt_discovery_prefix, hostname)
 
         # 3. Start your metric‐gathering threads
         thread1 = threading.Thread(target=gather_and_send_info, daemon=True)
@@ -1100,7 +1087,7 @@ if __name__ == '__main__':
             while not stop_event.is_set():
                 time.sleep(1)
         except KeyboardInterrupt:
-            print("Ctrl+C pressed. Shutting down…")
+            logger.info("Ctrl+C pressed. Shutting down…")
             stop_event.set()
         finally:
             # cleanly stop the network loop and exit
