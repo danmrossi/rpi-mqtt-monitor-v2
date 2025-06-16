@@ -105,7 +105,7 @@ def check_memory():
         parts = result.stdout.splitlines()[1].split()
         memory = round(float(parts[2]) / float(parts[1]) * 100)
     except Exception:
-        memory = 0
+        memory = None if config.use_availability else 0
     return memory
 
 def check_rpi_power_status():
@@ -160,16 +160,21 @@ def read_ext_sensors():
     # item[3] = value
     # now we iterate over the external sensors
     for item in config.ext_sensors:
-        # if it is a DS18B20 sensor 
+        # if it is a DS18B20 sensor
         if item[1] == "ds18b20":
             # if sensor ID in unknown, then we try to get it
             # this only works for a single DS18B20 sensor
-            if item[2]==0:
-                item[2] = ds18b20.get_available_sensors()[0]
-            temp = ds18b20.sensor_DS18B20(sensor_id=item[2])
-            item[3] = temp
-            # in case that some error occurs during reading, we get -300
-            if temp==-300:
+            try:
+                if item[2] == 0:
+                    sensors = ds18b20.get_available_sensors()
+                    if not sensors:
+                        raise RuntimeError("No DS18B20 sensors found")
+                    item[2] = sensors[0]
+                temp = ds18b20.sensor_DS18B20(sensor_id=item[2])
+                item[3] = temp
+                if temp == -300:
+                    raise RuntimeError("Read error")
+            except Exception:
                 logger.error("Error while reading sensor %s, %s", item[1], item[2])
                 if config.use_availability:
                     item[3] = None
@@ -847,10 +852,10 @@ def parse_arguments():
 
     if args.version:
         installed_version = config.version
-        latest_versino = update.check_git_version_remote(script_dir).strip()
+        latest_version = update.check_git_version_remote(script_dir).strip()
         logger.info("Installed version: %s", installed_version)
-        logger.info("Latest version: %s", latest_versino)
-        if installed_version != latest_versino:
+        logger.info("Latest version: %s", latest_version)
+        if installed_version != latest_version:
             logger.info("Update available")
         else:
             logger.info("No update available")
