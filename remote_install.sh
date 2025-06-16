@@ -1,5 +1,5 @@
 #!/bin/bash
-# Description: Remote Installation script for rpi-mqtt-monitor
+# Description: Remote Installation script for rpi-mqtt-monitor-v2
 
 printm(){
   length=$(expr length "$1")
@@ -23,10 +23,10 @@ welcome(){
 }
 
 uninstall(){
-  printm "Uninstalling rpi-mqtt-monitor"
+  printm "Uninstalling rpi-mqtt-monitor-v2"
 
   # Ask for confirmation before proceeding
-  read -r -p "Are you sure you want to uninstall rpi-mqtt-monitor? [y/N] " response
+  read -r -p "Are you sure you want to uninstall rpi-mqtt-monitor-v2? [y/N] " response
   if [[ ! "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
     echo "Uninstallation canceled."
     exit
@@ -35,16 +35,16 @@ uninstall(){
   # Get the absolute path of the script
   script_dir=$(dirname "$(realpath "$0")")
 
-  # Remove the rpi-mqtt-monitor directory if it exists
+  # Remove the rpi-mqtt-monitor-v2 directory if it exists
   if [ -d "$script_dir" ]; then
-    if [ "$(realpath rpi-mqtt-monitor)" == "$script_dir" ]; then
+    if [ "$(realpath rpi-mqtt-monitor-v2)" == "$script_dir" ]; then
       # If the script is running from the installation directory, navigate out of it
       cd ..
     fi
     sudo rm -rf "$script_dir"
-    echo "Removed rpi-mqtt-monitor directory."
+    echo "Removed rpi-mqtt-monitor-v2 directory."
   else
-    echo "rpi-mqtt-monitor directory not found."
+    echo "rpi-mqtt-monitor-v2 directory not found."
   fi
   
   # Remove the cron job if it exists
@@ -56,14 +56,14 @@ uninstall(){
   fi
 
   # Remove the systemd service if it exists
-  if [ -f /etc/systemd/system/rpi-mqtt-monitor.service ]; then
-    sudo systemctl stop rpi-mqtt-monitor.service
-    sudo systemctl disable rpi-mqtt-monitor.service
-    sudo rm /etc/systemd/system/rpi-mqtt-monitor.service
+  if [ -f /etc/systemd/system/rpi-mqtt-monitor-v2.service ]; then
+    sudo systemctl stop rpi-mqtt-monitor-v2.service
+    sudo systemctl disable rpi-mqtt-monitor-v2.service
+    sudo rm /etc/systemd/system/rpi-mqtt-monitor-v2.service
     sudo systemctl daemon-reload
-    echo "Removed systemd service for rpi-mqtt-monitor."
+    echo "Removed systemd service for rpi-mqtt-monitor-v2."
   else
-    echo "No systemd service found for rpi-mqtt-monitor."
+    echo "No systemd service found for rpi-mqtt-monitor-v2."
   fi
 
   # Optionally remove git if it was installed by this script
@@ -84,9 +84,9 @@ main(){
     sudo apt-get install git  
   fi
 
-  printm "Cloning rpi-mqtt-monitor git repository"
-  git clone https://github.com/hjelev/rpi-mqtt-monitor.git
-  cd rpi-mqtt-monitor
+  printm "Cloning rpi-mqtt-monitor-v2 git repository"
+  git clone https://github.com/danmrossi/rpi-mqtt-monitor-v2.git
+  cd rpi-mqtt-monitor-v2
   git pull
   bash install.sh
 }
