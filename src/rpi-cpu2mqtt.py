@@ -949,8 +949,8 @@ def gather_and_send_info():
             # the only options are "a" for append or "w" for (over)write
             # check if one of this options is defined
             if config.output_mode not in ["a", "w"]:
-                print("Error, output_type not known. Default w is set.")
-                config.output_type = "w"
+                print("Error, output_mode not known. Default w is set.")
+                config.output_mode = "w"
             try:
                 # open the text file
                 output_file = open(config.output_filename, config.output_mode)
