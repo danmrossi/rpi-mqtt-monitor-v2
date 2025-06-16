@@ -3,6 +3,10 @@ import os
 import subprocess
 import config
 import sys
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def safe_literal_eval(node):
@@ -49,33 +53,39 @@ def display_config_differences(current_config, example_config, display=True):
     missing_assignments = {var: value for var, value in example_assignments.items() if var not in current_assignments}
 
     if missing_assignments:
-        if display: 
-            print("Missing variables:")
+        if display:
+            logger.info("Missing variables:")
             for var, value in missing_assignments.items():
-                print('\n{} = {!r}'.format(var, value))
+                logger.info("%s = %r", var, value)
         return True
     else:
         return False
 
 
 def check_git_version_remote(script_dir):
-    full_cmd = "/usr/bin/git -C {} ls-remote --tags origin | awk -F'/' '{{print $3}}' | sort -V | tail -n 1".format(script_dir)
     try:
-        result = subprocess.Popen(full_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0].decode("utf-8")
+        result = subprocess.run(
+            ["/usr/bin/git", "-C", script_dir, "tag", "--sort=-v:refname"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        tags = result.stdout.strip().splitlines()
+        latest_tag = tags[0] if tags else "0"
     except subprocess.CalledProcessError as e:
-        print("Error: {}".format(e))
+        logger.error("Error checking git version: %s", e)
         return config.version
-    
-    latest_tag = result.strip()
-    return latest_tag if latest_tag else "0"
+
+    return latest_tag
 
 
 def update_config_version(version, script_dir):
     with open(script_dir + '/config.py', 'r') as f:
         lines = f.readlines()
 
-    with open(script_dir + '/config.py', 'w') as f:
-        print(":: Updating config version to {}".format(version))
+    with open(os.path.join(script_dir, 'config.py'), 'w') as f:
+        logger.info("Updating config version to %s", version)
         for line in lines:
             if 'version = ' in line:
                 f.write('version = "{}"\n'.format(version))
@@ -86,27 +96,26 @@ def update_config_version(version, script_dir):
 def install_requirements(script_dir):
     main_dir_path = os.path.dirname(script_dir)
     requirements_path = os.path.join(main_dir_path, 'requirements.txt')
-    activate_script = os.path.join(main_dir_path, 'rpi_mon_env' ,'bin', 'activate')
-    command = f"source {activate_script} && pip install -q -r {requirements_path}"
+    pip_executable = os.path.join(main_dir_path, 'rpi_mon_env', 'bin', 'pip')
 
     try:
-        subprocess.run(command, shell=True, check=True, executable='/bin/bash')
-        print("Requirements installed successfully.")
+        subprocess.run([pip_executable, 'install', '-q', '-r', requirements_path], check=True)
+        logger.info("Requirements installed successfully.")
     except subprocess.CalledProcessError as e:
-        print(f"An error occurred while installing requirements: {e}")
+        logger.error("An error occurred while installing requirements: %s", e)
         sys.exit(1)
 
 
 def do_update(script_dir, version=config.version, git_update=True, config_update=True):
-    print("Current version: {}".format(config.version))
+    logger.info("Current version: %s", config.version)
     if git_update:
-        print(":: Updating git repository", script_dir)
-        result = subprocess.run(['/usr/bin/git', '-C', script_dir, 'pull'], check=True, universal_newlines=True, stdout=subprocess.PIPE)
-        print(result.stdout)
+        logger.info("Updating git repository %s", script_dir)
+        result = subprocess.run(['/usr/bin/git', '-C', script_dir, 'pull'], check=True, text=True, stdout=subprocess.PIPE)
+        logger.info(result.stdout)
         install_requirements(script_dir)
         
     if display_config_differences(script_dir + '/config.py', script_dir + '/config.py.example') and config_update:
-        print(":: Updating config.py")
+        logger.info("Updating config.py")
         update_config(script_dir + '/config.py',script_dir + '/config.py.example')
 
     if version != config.version:
@@ -116,4 +125,3 @@ def do_update(script_dir, version=config.version, git_update=True, config_update
 if __name__ == '__main__':
     script_dir = os.path.dirname(os.path.realpath(__file__))
     do_update(script_dir,check_git_version_remote(script_dir))
-    
