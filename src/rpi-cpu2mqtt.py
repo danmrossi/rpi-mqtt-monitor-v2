@@ -645,28 +645,37 @@ def publish_update_status_to_mqtt(git_update, apt_updates):
         return
 
     client.loop_start()
+    publish_infos = []
     if config.git_update:
         if config.discovery_messages:
-            client.publish(config.mqtt_discovery_prefix + "/binary_sensor/" + config.mqtt_topic_prefix + "/" + hostname + "_git_update/config",
-                           config_json('git_update'), qos=config.qos)
-        client.publish(config.mqtt_uns_structure + config.mqtt_topic_prefix + "/" + hostname + "/git_update", git_update, qos=1, retain=config.retain)
+            publish_infos.append(
+                client.publish(
+                    config.mqtt_discovery_prefix + "/binary_sensor/" + config.mqtt_topic_prefix + "/" + hostname + "_git_update/config",
+                    config_json('git_update'), qos=config.qos))
+        publish_infos.append(
+            client.publish(config.mqtt_uns_structure + config.mqtt_topic_prefix + "/" + hostname + "/git_update",
+                          git_update, qos=1, retain=config.retain))
 
     if config.update:
         if config.discovery_messages:
-            client.publish(config.mqtt_discovery_prefix + "/update/" + hostname + "/config",
-                           config_json('update'), qos=1)
+            publish_infos.append(
+                client.publish(config.mqtt_discovery_prefix + "/update/" + hostname + "/config",
+                              config_json('update'), qos=1))
 
     if config.apt_updates:
         if config.discovery_messages:
-            client.publish(config.mqtt_discovery_prefix + "/sensor/" + config.mqtt_topic_prefix + "/" + hostname + "_apt_updates/config",
-                           config_json('apt_updates'), qos=config.qos)
-        client.publish(config.mqtt_uns_structure + config.mqtt_topic_prefix + "/" + hostname + "/apt_updates", apt_updates, qos=config.qos, retain=config.retain)
+            publish_infos.append(
+                client.publish(
+                    config.mqtt_discovery_prefix + "/sensor/" + config.mqtt_topic_prefix + "/" + hostname + "_apt_updates/config",
+                    config_json('apt_updates'), qos=config.qos))
+        publish_infos.append(
+            client.publish(
+                config.mqtt_uns_structure + config.mqtt_topic_prefix + "/" + hostname + "/apt_updates",
+                apt_updates, qos=config.qos, retain=config.retain))
 
 
-    # Wait for all messages to be delivered
-    while len(client._out_messages) > 0:
-        time.sleep(0.1)
-        client.loop()
+    for info in publish_infos:
+        info.wait_for_publish()
 
     client.loop_stop()
     client.disconnect()
@@ -701,7 +710,7 @@ def send_sensor_data_to_home_assistant(entity_id, state, attributes):
         "attributes": attributes
     }
     try:
-        response = requests.post(url, headers=headers, json=data)
+        response = requests.post(url, headers=headers, json=data, timeout=10)
         if response.status_code not in [200, 201]:
             logger.error(
                 "Failed to update %s: %s - %s",
@@ -719,40 +728,65 @@ def publish_to_mqtt(monitored_values):
         return
 
     client.loop_start()
+    publish_infos = []
     non_standard_values = ['restart_button', 'shutdown_button', 'display_control', 'drive_temps', 'ext_sensors']
   # Publish standard monitored values
     for key, value in monitored_values.items():
         if key not in non_standard_values and key in config.__dict__ and config.__dict__[key]:
             if config.discovery_messages:
-                client.publish(f"{config.mqtt_discovery_prefix}/sensor/{config.mqtt_topic_prefix}/{hostname}_{key}/config",
-                            config_json(key), qos=config.qos)
+                publish_infos.append(
+                    client.publish(
+                        f"{config.mqtt_discovery_prefix}/sensor/{config.mqtt_topic_prefix}/{hostname}_{key}/config",
+                        config_json(key), qos=config.qos))
             if config.use_availability:
-                client.publish(f"{config.mqtt_uns_structure}{config.mqtt_topic_prefix}/{hostname}/{key}_availability", 'offline' if value is None else 'online', qos=config.qos)
-            client.publish(f"{config.mqtt_uns_structure}{config.mqtt_topic_prefix}/{hostname}/{key}", value, qos=config.qos, retain=config.retain)
+                publish_infos.append(
+                    client.publish(
+                        f"{config.mqtt_uns_structure}{config.mqtt_topic_prefix}/{hostname}/{key}_availability",
+                        'offline' if value is None else 'online', qos=config.qos))
+            publish_infos.append(
+                client.publish(
+                    f"{config.mqtt_uns_structure}{config.mqtt_topic_prefix}/{hostname}/{key}",
+                    value, qos=config.qos, retain=config.retain))
 
   # Publish non standard values    
     if config.restart_button:
         if config.discovery_messages:
-            client.publish(config.mqtt_discovery_prefix + "/button/" + config.mqtt_topic_prefix + "/" + hostname + "_restart/config",
-                           config_json('restart_button'), qos=config.qos)
+            publish_infos.append(
+                client.publish(
+                    config.mqtt_discovery_prefix + "/button/" + config.mqtt_topic_prefix + "/" + hostname + "_restart/config",
+                    config_json('restart_button'), qos=config.qos))
     if config.shutdown_button:
         if config.discovery_messages:
-            client.publish(config.mqtt_discovery_prefix + "/button/" + config.mqtt_topic_prefix + "/" + hostname + "_shutdown/config",
-                           config_json('shutdown_button'), qos=config.qos)
+            publish_infos.append(
+                client.publish(
+                    config.mqtt_discovery_prefix + "/button/" + config.mqtt_topic_prefix + "/" + hostname + "_shutdown/config",
+                    config_json('shutdown_button'), qos=config.qos))
     if config.display_control:
         if config.discovery_messages:
-            client.publish(config.mqtt_discovery_prefix + "/button/" + config.mqtt_topic_prefix + "/" + hostname + "_display_on/config",
-                           config_json('display_on'), qos=config.qos)
-            client.publish(config.mqtt_discovery_prefix + "/button/" + config.mqtt_topic_prefix + "/" + hostname + "_display_off/config",
-                           config_json('display_off'), qos=config.qos)
+            publish_infos.append(
+                client.publish(
+                    config.mqtt_discovery_prefix + "/button/" + config.mqtt_topic_prefix + "/" + hostname + "_display_on/config",
+                    config_json('display_on'), qos=config.qos))
+            publish_infos.append(
+                client.publish(
+                    config.mqtt_discovery_prefix + "/button/" + config.mqtt_topic_prefix + "/" + hostname + "_display_off/config",
+                    config_json('display_off'), qos=config.qos))
     if config.drive_temps:
         for device, temp in monitored_values['drive_temps'].items():
             if config.discovery_messages:
-                client.publish(config.mqtt_discovery_prefix + "/sensor/" + config.mqtt_topic_prefix + "/" + hostname + "_" + device + "_temp/config",
-                           config_json(device + "_temp", device), qos=config.qos)
+                publish_infos.append(
+                    client.publish(
+                        config.mqtt_discovery_prefix + "/sensor/" + config.mqtt_topic_prefix + "/" + hostname + "_" + device + "_temp/config",
+                        config_json(device + "_temp", device), qos=config.qos))
             if config.use_availability:
-                client.publish(f"{config.mqtt_uns_structure}{config.mqtt_topic_prefix}/{hostname}/{device}_temp_availability", 'offline' if temp is None else 'online', qos=config.qos)
-            client.publish(config.mqtt_uns_structure + config.mqtt_topic_prefix + "/" + hostname + "/" + device + "_temp", temp, qos=config.qos, retain=config.retain)
+                publish_infos.append(
+                    client.publish(
+                        f"{config.mqtt_uns_structure}{config.mqtt_topic_prefix}/{hostname}/{device}_temp_availability",
+                        'offline' if temp is None else 'online', qos=config.qos))
+            publish_infos.append(
+                client.publish(
+                    config.mqtt_uns_structure + config.mqtt_topic_prefix + "/" + hostname + "/" + device + "_temp",
+                    temp, qos=config.qos, retain=config.retain))
 
     if config.ext_sensors:
         # we loop through all sensors
@@ -763,51 +797,82 @@ def publish_to_mqtt(monitored_values):
             # item[3] = value, like temperature or humidity
             if item[1] == "ds18b20":
                 if config.discovery_messages:
-                    client.publish(
-                        config.mqtt_discovery_prefix + "/sensor/" + config.mqtt_topic_prefix + "/" + hostname + "_" + item[0] + "_status/config",
-                        config_json('ds18b20_status', device=item[0]), qos=config.qos)
+                    publish_infos.append(
+                        client.publish(
+                            config.mqtt_discovery_prefix + "/sensor/" + config.mqtt_topic_prefix + "/" + hostname + "_" + item[0] + "_status/config",
+                            config_json('ds18b20_status', device=item[0]), qos=config.qos))
                 if config.use_availability:
-                    client.publish(f"{config.mqtt_uns_structure}{config.mqtt_topic_prefix}/{hostname}/ds18b20_status_{item[0]}_availability", 'offline' if item[3] is None else 'online', qos=config.qos)
-                client.publish(config.mqtt_uns_structure + config.mqtt_topic_prefix + "/" + hostname + "/" + "ds18b20_status_" + item[0], item[3], qos=config.qos, retain=config.retain)
+                    publish_infos.append(
+                        client.publish(
+                            f"{config.mqtt_uns_structure}{config.mqtt_topic_prefix}/{hostname}/ds18b20_status_{item[0]}_availability",
+                            'offline' if item[3] is None else 'online', qos=config.qos))
+                publish_infos.append(
+                    client.publish(
+                        config.mqtt_uns_structure + config.mqtt_topic_prefix + "/" + hostname + "/" + "ds18b20_status_" + item[0],
+                        item[3], qos=config.qos, retain=config.retain))
             if item[1] == "sht21":
                 if config.discovery_messages:
                     # temperature
-                    client.publish(
-                        config.mqtt_discovery_prefix + "/sensor/" + config.mqtt_topic_prefix + "/" + hostname + "_" + item[0] + "_temp_status/config",
-                        config_json('sht21_temp_status', device=item[0]), qos=config.qos)
+                    publish_infos.append(
+                        client.publish(
+                            config.mqtt_discovery_prefix + "/sensor/" + config.mqtt_topic_prefix + "/" + hostname + "_" + item[0] + "_temp_status/config",
+                            config_json('sht21_temp_status', device=item[0]), qos=config.qos))
                     # humidity
-                    client.publish(
-                        config.mqtt_discovery_prefix + "/sensor/" + config.mqtt_topic_prefix + "/" + hostname + "_" + item[0] + "_hum_status/config",
-                        config_json('sht21_hum_status', device=item[0]), qos=config.qos)
+                    publish_infos.append(
+                        client.publish(
+                            config.mqtt_discovery_prefix + "/sensor/" + config.mqtt_topic_prefix + "/" + hostname + "_" + item[0] + "_hum_status/config",
+                            config_json('sht21_hum_status', device=item[0]), qos=config.qos))
                 if config.use_availability:
-                    client.publish(f"{config.mqtt_uns_structure}{config.mqtt_topic_prefix}/{hostname}/sht21_temp_status_{item[0]}_availability", 'offline' if item[3][0] is None else 'online', qos=config.qos)
-                    client.publish(f"{config.mqtt_uns_structure}{config.mqtt_topic_prefix}/{hostname}/sht21_hum_status_{item[0]}_availability", 'offline' if item[3][1] is None else 'online', qos=config.qos)
+                    publish_infos.append(
+                        client.publish(
+                            f"{config.mqtt_uns_structure}{config.mqtt_topic_prefix}/{hostname}/sht21_temp_status_{item[0]}_availability",
+                            'offline' if item[3][0] is None else 'online', qos=config.qos))
+                    publish_infos.append(
+                        client.publish(
+                            f"{config.mqtt_uns_structure}{config.mqtt_topic_prefix}/{hostname}/sht21_hum_status_{item[0]}_availability",
+                            'offline' if item[3][1] is None else 'online', qos=config.qos))
                 # temperature
-                client.publish(config.mqtt_uns_structure + config.mqtt_topic_prefix + "/" + hostname + "/" + "sht21_temp_status_" + item[0], item[3][0], qos=config.qos, retain=config.retain)
+                publish_infos.append(
+                    client.publish(
+                        config.mqtt_uns_structure + config.mqtt_topic_prefix + "/" + hostname + "/" + "sht21_temp_status_" + item[0],
+                        item[3][0], qos=config.qos, retain=config.retain))
                 # humidity
-                client.publish(config.mqtt_uns_structure + config.mqtt_topic_prefix + "/" + hostname + "/" + "sht21_hum_status_" + item[0], item[3][1], qos=config.qos, retain=config.retain)
+                publish_infos.append(
+                    client.publish(
+                        config.mqtt_uns_structure + config.mqtt_topic_prefix + "/" + hostname + "/" + "sht21_hum_status_" + item[0],
+                        item[3][1], qos=config.qos, retain=config.retain))
                 
     status_sensor_topic = config.mqtt_discovery_prefix + "/sensor/" + config.mqtt_topic_prefix + "/" + hostname + "_status/config"
-    client.publish(status_sensor_topic, config_json('status'), qos=config.qos)
-    client.publish(config.mqtt_uns_structure + config.mqtt_topic_prefix + "/" + hostname + "/status", "1", qos=config.qos, retain=config.retain)
+    publish_infos.append(
+        client.publish(status_sensor_topic, config_json('status'), qos=config.qos))
+    publish_infos.append(
+        client.publish(config.mqtt_uns_structure + config.mqtt_topic_prefix + "/" + hostname + "/status",
+                      "1", qos=config.qos, retain=config.retain))
 
     if "data_sent" in monitored_values:
         if config.discovery_messages:
-            client.publish(f"{config.mqtt_discovery_prefix}/sensor/{config.mqtt_topic_prefix}/{hostname}_data_sent/config",
-                           config_json("data_sent"), qos=config.qos)
-        client.publish(f"{config.mqtt_uns_structure}{config.mqtt_topic_prefix}/{hostname}/data_sent",
-                       monitored_values["data_sent"], qos=config.qos, retain=config.retain)
+            publish_infos.append(
+                client.publish(
+                    f"{config.mqtt_discovery_prefix}/sensor/{config.mqtt_topic_prefix}/{hostname}_data_sent/config",
+                    config_json("data_sent"), qos=config.qos))
+        publish_infos.append(
+            client.publish(
+                f"{config.mqtt_uns_structure}{config.mqtt_topic_prefix}/{hostname}/data_sent",
+                monitored_values["data_sent"], qos=config.qos, retain=config.retain))
 
     if "data_received" in monitored_values:
         if config.discovery_messages:
-            client.publish(f"{config.mqtt_discovery_prefix}/sensor/{config.mqtt_topic_prefix}/{hostname}_data_received/config",
-                           config_json("data_received"), qos=config.qos)
-        client.publish(f"{config.mqtt_uns_structure}{config.mqtt_topic_prefix}/{hostname}/data_received",
-                       monitored_values["data_received"], qos=config.qos, retain=config.retain)
+            publish_infos.append(
+                client.publish(
+                    f"{config.mqtt_discovery_prefix}/sensor/{config.mqtt_topic_prefix}/{hostname}_data_received/config",
+                    config_json("data_received"), qos=config.qos))
+        publish_infos.append(
+            client.publish(
+                f"{config.mqtt_uns_structure}{config.mqtt_topic_prefix}/{hostname}/data_received",
+                monitored_values["data_received"], qos=config.qos, retain=config.retain))
     
-    while len(client._out_messages) > 0:
-        time.sleep(0.1)
-        client.loop()
+    for info in publish_infos:
+        info.wait_for_publish()
 
     client.loop_stop()
     client.disconnect()
@@ -828,11 +893,11 @@ def bulk_publish_to_mqtt(monitored_values):
         return
 
     client.loop_start()
-    client.publish(config.mqtt_uns_structure + config.mqtt_topic_prefix + "/" + hostname, values_str, qos=config.qos, retain=config.retain)
+    info = client.publish(
+        config.mqtt_uns_structure + config.mqtt_topic_prefix + "/" + hostname,
+        values_str, qos=config.qos, retain=config.retain)
 
-    while len(client._out_messages) > 0:
-        time.sleep(0.1)
-        client.loop()
+    info.wait_for_publish()
 
     client.loop_stop()
     client.disconnect()
@@ -951,8 +1016,8 @@ def gather_and_send_info():
             # the only options are "a" for append or "w" for (over)write
             # check if one of this options is defined
             if config.output_mode not in ["a", "w"]:
-                logger.warning("Error, output_type not known. Default w is set.")
-                config.output_type = "w"
+                logger.warning("Error, output_mode not known. Default w is set.")
+                config.output_mode = "w"
             try:
                 # read what should be written into the textfile
                 # we need to define this is a function, otherwise the values are not updated and default values are taken
