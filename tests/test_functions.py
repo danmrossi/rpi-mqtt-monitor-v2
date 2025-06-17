@@ -49,6 +49,11 @@ class TestFunctions(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 update.install_requirements('/tmp')
 
+    def test_sanitize_numeric(self):
+        self.assertEqual(monitor.sanitize_numeric(10), 10)
+        self.assertEqual(monitor.sanitize_numeric(None), 0)
+        self.assertEqual(monitor.sanitize_numeric(float('nan')), 0)
+
 if __name__ == '__main__':
     unittest.main()
 

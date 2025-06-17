@@ -23,6 +23,7 @@ import requests
 import configparser
 import psutil
 import logging
+import math
 #import external sensor lib only if one uses external sensors
 if config.ext_sensors:
     # append folder ext_sensor_lib
@@ -40,6 +41,18 @@ configlanguage.read(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tr
 def get_translation(key):
     """ get the correct translation"""
     return configlanguage.get(config.language, key, fallback=key)
+
+
+def sanitize_numeric(value):
+    """Return a valid numeric value or a fallback when invalid."""
+    try:
+        if value is None:
+            raise ValueError
+        if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
+            raise ValueError
+        return value
+    except Exception:
+        return None if config.use_availability else 0
 
 
 def check_wifi_signal(format):
@@ -957,39 +970,46 @@ def collect_monitored_values():
     monitored_values = {}
 
     if config.cpu_load:
-        monitored_values["cpu_load"] = check_cpu_load()
+        monitored_values["cpu_load"] = sanitize_numeric(check_cpu_load())
     if config.cpu_temp:
-        monitored_values["cpu_temp"] = check_cpu_temp()
+        monitored_values["cpu_temp"] = sanitize_numeric(check_cpu_temp())
     if config.used_space:
-        monitored_values["used_space"] = check_used_space(config.used_space_path)
+        monitored_values["used_space"] = sanitize_numeric(check_used_space(config.used_space_path))
     if config.voltage:
-        monitored_values["voltage"] = check_voltage()
+        monitored_values["voltage"] = sanitize_numeric(check_voltage())
     if config.sys_clock_speed:
-        monitored_values["sys_clock_speed"] = check_sys_clock_speed()
+        monitored_values["sys_clock_speed"] = sanitize_numeric(check_sys_clock_speed())
     if config.swap:
-        monitored_values["swap"] = check_swap()
+        monitored_values["swap"] = sanitize_numeric(check_swap())
     if config.memory:
-        monitored_values["memory"] = check_memory()
+        monitored_values["memory"] = sanitize_numeric(check_memory())
     if config.uptime:
         monitored_values["uptime"] = check_uptime('timestamp')
     if config.uptime_seconds:
-        monitored_values["uptime_seconds"] = check_uptime('')
+        monitored_values["uptime_seconds"] = sanitize_numeric(check_uptime(''))
     if config.wifi_signal:
-        monitored_values["wifi_signal"] = check_wifi_signal('')
+        monitored_values["wifi_signal"] = sanitize_numeric(check_wifi_signal(''))
     if config.wifi_signal_dbm:
-        monitored_values["wifi_signal_dbm"] = check_wifi_signal('dbm')
+        monitored_values["wifi_signal_dbm"] = sanitize_numeric(check_wifi_signal('dbm'))
     if config.rpi5_fan_speed:
-        monitored_values["rpi5_fan_speed"] = check_rpi5_fan_speed()
+        monitored_values["rpi5_fan_speed"] = sanitize_numeric(check_rpi5_fan_speed())
     if config.drive_temps:
-        monitored_values["drive_temps"] = check_all_drive_temps()
+        temps = check_all_drive_temps()
+        monitored_values["drive_temps"] = {k: sanitize_numeric(v) for k, v in temps.items()}
     if config.rpi_power_status:
         monitored_values["rpi_power_status"] = check_rpi_power_status()
     if config.ext_sensors:
-        monitored_values["ext_sensors"] = read_ext_sensors()
+        sensors = read_ext_sensors()
+        for sensor in sensors:
+            if isinstance(sensor[3], list):
+                sensor[3] = [sanitize_numeric(v) for v in sensor[3]]
+            else:
+                sensor[3] = sanitize_numeric(sensor[3])
+        monitored_values["ext_sensors"] = sensors
     if config.net_io:
         data_sent, data_received = get_network_data()
-        monitored_values["data_sent"] = data_sent
-        monitored_values["data_received"] = data_received
+        monitored_values["data_sent"] = sanitize_numeric(data_sent)
+        monitored_values["data_received"] = sanitize_numeric(data_received)
 
     return monitored_values
 
