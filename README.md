@@ -84,7 +84,7 @@ rpi-mqtt-monitor-v2 --uninstall
 ```
 usage: rpi-mqtt-monitor-v2 [-h] [-H] [-d] [-s] [-v] [-u] [-w] [--uninstall]
 
-Monitor CPU load, temperature, frequency, free space, etc., and publish the data to an MQTT server or Home Assistant API.
+Monitor CPU Load, temperature, frequency, free space, etc., and publish the data to an MQTT server or Home Assistant API.
 
 options:
   -h, --help       show this help message and exit

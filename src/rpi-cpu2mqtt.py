@@ -919,7 +919,7 @@ def bulk_publish_to_mqtt(monitored_values):
 def parse_arguments():
     parser = argparse.ArgumentParser(
         prog='rpi-mqtt-monitor-v2',
-        description='Monitor CPU load, temperature, frequency, free space, etc., and publish the data to an MQTT server or Home Assistant API.'
+        description='Monitor CPU Load, temperature, frequency, free space, etc., and publish the data to an MQTT server or Home Assistant API.'
     )
     parser.add_argument('-H', '--hass_api', action='store_true',  help='send readings via Home Assistant API (not via MQTT)', default=False)
     parser.add_argument('-d', '--display',  action='store_true',  help='display values on screen', default=False)
