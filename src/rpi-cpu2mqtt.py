@@ -943,6 +943,9 @@ def parse_arguments():
         logger.info("Latest version: %s", latest_version)
         if installed_version != latest_version:
             logger.info("Update available")
+            response = input("Update to %s? [y/N]: " % latest_version)
+            if response.lower() in ["y", "yes"]:
+                update.do_update(script_dir, latest_version, True)
         else:
             logger.info("No update available")
         exit()
