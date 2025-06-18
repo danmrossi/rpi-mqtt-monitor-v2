@@ -20,7 +20,7 @@ The easiest way to track your Raspberry Pi or Ubuntu computer system health and 
 * Automated Installation and Configuration: You can install it and schedule it with a service or cron job with just one command from shell
 * Easy Removal, just run rpi-mqtt-monitor-v2 --uninstall
 * Configurable: You can select what is monitored and how the message(s) are sent (separately or as one csv message)
-* Easy update: You can update the script by calling it with command line "rpi-mqtt-monitor-v2 --update" or via Home Assistant UI
+* Easy update: Run `rpi-mqtt-monitor-v2 --version` to check for updates and install them, or call `rpi-mqtt-monitor-v2 --update` directly or via Home Assistant UI
 * Support multiple languages: English, German and Bulgarian
 
 ## Table of Contents
@@ -85,7 +85,7 @@ options:
   -H, --hass_api   send readings via Home Assistant API (not via MQTT)
   -d, --display    display values on screen
   -s, --service    run script as a service, sleep interval is configurable in config.py
-  -v, --version    display installed version and exit
+  -v, --version    show installed and latest version, optionally update
   -u, --update     update script and config then exit
   -w, --hass_wake  display Home assistant wake on lan configuration
   --uninstall      uninstall rpi-mqtt-monitor-v2 and remove all related files

@@ -40,9 +40,15 @@ class TestFunctions(unittest.TestCase):
         with mock.patch('subprocess.run', return_value=mock_completed) as m:
             version = update.check_git_version_remote('/tmp')
             self.assertEqual(version, 'v1.0')
-            m.assert_called_with([
-                '/usr/bin/git', '-C', '/tmp', 'tag', '--sort=-v:refname'
-            ], check=True, stdout=mock.ANY, stderr=mock.ANY, text=True)
+            expected_calls = [
+                mock.call([
+                    '/usr/bin/git', '-C', '/tmp', 'fetch', '--tags'
+                ], check=True, stdout=mock.ANY, stderr=mock.ANY, text=True),
+                mock.call([
+                    '/usr/bin/git', '-C', '/tmp', 'tag', '--sort=-v:refname'
+                ], check=True, stdout=mock.ANY, stderr=mock.ANY, text=True)
+            ]
+            m.assert_has_calls(expected_calls)
 
     def test_install_requirements_error(self):
         with mock.patch('subprocess.run', side_effect=subprocess.CalledProcessError(1, 'cmd')):

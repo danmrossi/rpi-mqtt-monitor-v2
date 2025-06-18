@@ -73,7 +73,16 @@ def display_config_differences(current_config, example_config, display=True):
 
 
 def check_git_version_remote(script_dir):
+    """Return the newest tag from the remote repository."""
     try:
+        subprocess.run(
+            ["/usr/bin/git", "-C", script_dir, "fetch", "--tags"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
         result = subprocess.run(
             ["/usr/bin/git", "-C", script_dir, "tag", "--sort=-v:refname"],
             check=True,
