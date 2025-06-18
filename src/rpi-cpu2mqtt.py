@@ -481,9 +481,9 @@ def build_device_info():
         "model": f'RPi MQTT Monitor V2 {config.version}',
         "name": hostname,
         "sw_version": get_os(),
-        "hw_version": f"{check_model_name()} by {get_manufacturer()}",
+        "hw_version": f"{check_model_name()} by {get_manufacturer()} IP:{get_network_ip()}",
         "configuration_url": "https://github.com/danmrossi/rpi-mqtt-monitor-v2",
-        "connections": [["mac", get_mac_address()], ["ip", get_network_ip()]]
+        "connections": [["mac", get_mac_address()]]
     }
 
 def build_data_template(what_config):
