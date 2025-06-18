@@ -534,7 +534,7 @@ def handle_specific_configurations(data, what_config, device):
         add_common_attributes(data, "mdi:fan", get_translation("fan_speed"), "RPM", None, "measurement")
     elif what_config == "status":
         add_common_attributes(data, "mdi:lan-connect", get_translation("status"))
-        data["value_template"] = "{{ 'online' if value == '1' else 'offline' }}"
+        data["value_template"] = "{{ 'Online' if value == '1' else 'Offline' }}"
     elif what_config == "git_update":
         add_common_attributes(data, "mdi:git", get_translation("rpi_mqtt_monitor"), None, "update", "measurement")
         data["title"] = "Device Update"
@@ -755,7 +755,7 @@ def publish_to_mqtt(monitored_values):
                 publish_infos.append(
                     client.publish(
                         f"{config.mqtt_uns_structure}{config.mqtt_topic_prefix}/{hostname}/{key}_availability",
-                        'offline' if value is None else 'online', qos=config.qos))
+                        'Offline' if value is None else 'Online', qos=config.qos))
             publish_infos.append(
                 client.publish(
                     f"{config.mqtt_uns_structure}{config.mqtt_topic_prefix}/{hostname}/{key}",
@@ -795,7 +795,7 @@ def publish_to_mqtt(monitored_values):
                 publish_infos.append(
                     client.publish(
                         f"{config.mqtt_uns_structure}{config.mqtt_topic_prefix}/{hostname}/{device}_temp_availability",
-                        'offline' if temp is None else 'online', qos=config.qos))
+                        'Offline' if temp is None else 'Online', qos=config.qos))
             publish_infos.append(
                 client.publish(
                     config.mqtt_uns_structure + config.mqtt_topic_prefix + "/" + hostname + "/" + device + "_temp",
@@ -818,7 +818,7 @@ def publish_to_mqtt(monitored_values):
                     publish_infos.append(
                         client.publish(
                             f"{config.mqtt_uns_structure}{config.mqtt_topic_prefix}/{hostname}/ds18b20_status_{item[0]}_availability",
-                            'offline' if item[3] is None else 'online', qos=config.qos))
+                            'Offline' if item[3] is None else 'Online', qos=config.qos))
                 publish_infos.append(
                     client.publish(
                         config.mqtt_uns_structure + config.mqtt_topic_prefix + "/" + hostname + "/" + "ds18b20_status_" + item[0],
@@ -839,11 +839,11 @@ def publish_to_mqtt(monitored_values):
                     publish_infos.append(
                         client.publish(
                             f"{config.mqtt_uns_structure}{config.mqtt_topic_prefix}/{hostname}/sht21_temp_status_{item[0]}_availability",
-                            'offline' if item[3][0] is None else 'online', qos=config.qos))
+                            'Offline' if item[3][0] is None else 'Online', qos=config.qos))
                     publish_infos.append(
                         client.publish(
                             f"{config.mqtt_uns_structure}{config.mqtt_topic_prefix}/{hostname}/sht21_hum_status_{item[0]}_availability",
-                            'offline' if item[3][1] is None else 'online', qos=config.qos))
+                            'Offline' if item[3][1] is None else 'Online', qos=config.qos))
                 # temperature
                 publish_infos.append(
                     client.publish(
