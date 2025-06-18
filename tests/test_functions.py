@@ -60,6 +60,26 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(monitor.sanitize_numeric(None), 0)
         self.assertEqual(monitor.sanitize_numeric(float('nan')), 0)
 
+    def test_build_device_info(self):
+        with mock.patch.object(monitor, 'hostname', 'test_host'), \
+             mock.patch.object(monitor, 'check_model_name', return_value='Pi Model'), \
+             mock.patch.object(monitor, 'get_manufacturer', return_value='ACME'), \
+             mock.patch.object(monitor, 'get_os', return_value='TestOS'), \
+             mock.patch.object(monitor, 'get_mac_address', return_value='00-11-22-33-44-55'), \
+             mock.patch.object(monitor, 'get_network_ip', return_value='192.168.1.2'):
+
+            expected = {
+                'identifiers': ['test_host'],
+                'manufacturer': 'github.com/danmrossi',
+                'model': f'RPi MQTT Monitor V2 {monitor.config.version}',
+                'name': 'test_host',
+                'sw_version': 'TestOS',
+                'hw_version': 'Pi Model by ACME',
+                'configuration_url': 'https://github.com/danmrossi/rpi-mqtt-monitor-v2',
+                'connections': [['mac', '00-11-22-33-44-55'], ['ip', '192.168.1.2']]
+            }
+            self.assertEqual(monitor.build_device_info(), expected)
+
 if __name__ == '__main__':
     unittest.main()
 
