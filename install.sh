@@ -222,10 +222,10 @@ set_cron(){
 set_service(){
   printm "Setting systemd service"
 
-  if [ -f /etc/systemd/system/rpi-mqtt-monitor-v2.service ]; then
+  if [ -f /etc/systemd/system/rpi-mqtt-monitor.service ]; then
     read -p "Service file already exists. Do you want to remove it? (y/n) " yn
     case $yn in
-        [Yy]* ) sudo rm /etc/systemd/system/rpi-mqtt-monitor-v2.service;;
+        [Yy]* ) sudo rm /etc/systemd/system/rpi-mqtt-monitor.service;;
         [Nn]* ) return;;
         * ) echo "Please answer y for yes or n for no.";;
     esac
@@ -239,23 +239,23 @@ set_service(){
   cwd=$(pwd)
   user=$(whoami)
   exec_start="${python} ${cwd}/src/rpi-cpu2mqtt.py --service${hass_api}"
-  print_green "+ Copy rpi-mqtt-monitor-v2.service to /etc/systemd/system/"
-  sudo cp ${cwd}/rpi-mqtt-monitor-v2.service /etc/systemd/system/
-  sudo sed -i "s|WorkingDirectory=.*|WorkingDirectory=${cwd}|" /etc/systemd/system/rpi-mqtt-monitor-v2.service
-  sudo sed -i "s|User=YOUR_USER|User=root|" /etc/systemd/system/rpi-mqtt-monitor-v2.service
-  sudo sed -i "s|ExecStart=.*|ExecStart=${exec_start}|" /etc/systemd/system/rpi-mqtt-monitor-v2.service
+  print_green "+ Copy rpi-mqtt-monitor.service to /etc/systemd/system/"
+  sudo cp ${cwd}/rpi-mqtt-monitor.service /etc/systemd/system/
+  sudo sed -i "s|WorkingDirectory=.*|WorkingDirectory=${cwd}|" /etc/systemd/system/rpi-mqtt-monitor.service
+  sudo sed -i "s|User=YOUR_USER|User=root|" /etc/systemd/system/rpi-mqtt-monitor.service
+  sudo sed -i "s|ExecStart=.*|ExecStart=${exec_start}|" /etc/systemd/system/rpi-mqtt-monitor.service
   home_dir=$(eval echo ~$user)
-  sudo sed -i "s|Environment=\"HOME=/home/username\"|Environment=\"HOME=${home_dir}\"|" /etc/systemd/system/rpi-mqtt-monitor-v2.service
+  sudo sed -i "s|Environment=\"HOME=/home/username\"|Environment=\"HOME=${home_dir}\"|" /etc/systemd/system/rpi-mqtt-monitor.service
   sudo systemctl daemon-reload
-  sudo systemctl enable rpi-mqtt-monitor-v2.service
-  sudo systemctl start rpi-mqtt-monitor-v2.service
-  sudo service rpi-mqtt-monitor-v2 restart
+  sudo systemctl enable rpi-mqtt-monitor.service
+  sudo systemctl start rpi-mqtt-monitor.service
+  sudo service rpi-mqtt-monitor restart
   print_green "+ Service is enabled and started"
   git config --global --add safe.directory ${cwd}
 }
 
 create_shortcut(){
-  printm "Creating shortcut rpi-mqtt-monitor-v2"
+  printm "Creating shortcut rpi-mqtt-monitor"
   cwd=$(pwd)
 
   # Ensure /usr/local/bin exists
@@ -264,9 +264,9 @@ create_shortcut(){
     print_green "/usr/local/bin created."
   fi
 
-  echo "${python} ${cwd}/src/rpi-cpu2mqtt.py \$@" > rpi-mqtt-monitor-v2
-  sudo mv rpi-mqtt-monitor-v2 /usr/local/bin/
-  sudo chmod +x /usr/local/bin/rpi-mqtt-monitor-v2
+  echo "${python} ${cwd}/src/rpi-cpu2mqtt.py \$@" > rpi-mqtt-monitor
+  sudo mv rpi-mqtt-monitor /usr/local/bin/
+  sudo chmod +x /usr/local/bin/rpi-mqtt-monitor
 }
 
 main(){
@@ -287,8 +287,8 @@ main(){
   done
   
   printm "Installation is complete."
-  echo "rpi-mqtt-monitor-v2 is now running and sending information to your ${finish_message}."
-  echo "To see all available options run: rpi-mqtt-monitor-v2 -h in the terminal."
+  echo "rpi-mqtt-monitor is now running and sending information to your ${finish_message}."
+  echo "To see all available options run: rpi-mqtt-monitor -h in the terminal."
 }
 
 main
