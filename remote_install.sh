@@ -28,7 +28,7 @@ uninstall(){
   # Ask for confirmation before proceeding
   read -r -p "Are you sure you want to uninstall rpi-mqtt-monitor? [y/N] " response
   if [[ ! "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-    echo "Uninstallation canceled."
+    echo "Uninstall canceled."
     exit
   fi
     
@@ -85,7 +85,7 @@ main(){
   fi
 
   printm "Cloning rpi-mqtt-monitor git repository"
-  git clone https://github.com/hjelev/rpi-mqtt-monitor.git
+  git clone https://github.com/danmrossi/rpi-mqtt-monitor.git
   cd rpi-mqtt-monitor
   git pull
   bash install.sh
