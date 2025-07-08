@@ -109,13 +109,13 @@ mqtt_configuration(){
   fi
   sed -i "s|1883|${PORT}|" src/config.py
 
-  printf "Enter mqtt_topic_prefix (default is rpi-MQTT-monitor-v2): "
+  printf "Enter mqtt_topic_prefix (default is rpi-MQTT-monitor): "
   read TOPIC
   if [ -z "$TOPIC" ]; then
-    TOPIC=rpi-MQTT-monitor-v2
+    TOPIC=rpi-MQTT-monitor
   fi
   TOPIC_ESC=$(escape_sed "$TOPIC")
-  sed -i "s|rpi-MQTT-monitor-v2|${TOPIC_ESC}|" src/config.py
+  sed -i "s|rpi-MQTT-monitor|${TOPIC_ESC}|" src/config.py
 
   printf "Enter mqtt_uns_structure (default is empty): "
   read UNS
