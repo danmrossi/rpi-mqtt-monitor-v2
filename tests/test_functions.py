@@ -13,6 +13,18 @@ SRC_DIR = Path(__file__).parents[1] / "src"
 sys.path.insert(0, str(SRC_DIR))
 sys.modules['config'] = types.SimpleNamespace(use_availability=False, ext_sensors=False, version="0")
 
+# Insert mocks for optional third party libraries so tests run without them
+paho_module = types.ModuleType("paho")
+paho_mqtt_module = types.ModuleType("paho.mqtt")
+paho_client_module = types.ModuleType("paho.mqtt.client")
+paho_mqtt_module.client = paho_client_module
+paho_module.mqtt = paho_mqtt_module
+sys.modules['paho'] = paho_module
+sys.modules['paho.mqtt'] = paho_mqtt_module
+sys.modules['paho.mqtt.client'] = paho_client_module
+sys.modules['psutil'] = types.ModuleType("psutil")
+sys.modules['requests'] = types.ModuleType("requests")
+
 spec = importlib.util.spec_from_file_location("monitor", str(SRC_DIR / "rpi-cpu2mqtt.py"))
 monitor = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(monitor)
