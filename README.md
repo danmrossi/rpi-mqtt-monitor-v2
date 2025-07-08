@@ -21,7 +21,7 @@ The easiest way to track your Raspberry Pi or Ubuntu computer system health and 
 * Easy Removal, just run rpi-mqtt-monitor --uninstall
 * Configurable: You can select what is monitored and how the message(s) are sent (separately or as one csv message)
 * Easy update: Run `rpi-mqtt-monitor --version` to check for updates and install them, or call `rpi-mqtt-monitor --update` directly or via Home Assistant UI
-* Support multiple languages: English, German and Bulgarian.
+* Support multiple languages: English, German and Bulgarian
 
 ## Installation
 
