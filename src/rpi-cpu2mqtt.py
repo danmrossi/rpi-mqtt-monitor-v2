@@ -455,7 +455,7 @@ def extract_text(html_string):
 
 
 def get_release_notes(version):
-    url = "https://github.com/hjelev/rpi-mqtt-monitor/releases/tag/" + version
+    url = "https://github.com/danmrossi/rpi-mqtt-monitor/releases/tag/" + version
 
     try:
         response = subprocess.run(['curl', '-s', url], capture_output=True)
@@ -477,12 +477,12 @@ def get_release_notes(version):
 def build_device_info():
     return {
         "identifiers": [hostname],
-        "manufacturer": 'github.com/hjelev',
+        "manufacturer": 'github.com/danmrossi',
         "model": f'RPi MQTT Monitor {config.version}',
         "name": hostname,
         "sw_version": get_os(),
         "hw_version": f"{check_model_name()} by {get_manufacturer()} IP:{get_network_ip()}",
-        "configuration_url": "https://github.com/hjelev/rpi-mqtt-monitor",
+        "configuration_url": "https://github.com/danmrossi/rpi-mqtt-monitor",
         "connections": [["mac", get_mac_address()]]
     }
 
@@ -547,8 +547,8 @@ def handle_specific_configurations(data, what_config, device):
         data["value_template"] = "{{ {'installed_version': value_json.installed_ver, 'latest_version': value_json.new_ver } | to_json }}"
         data["command_topic"] = config.mqtt_discovery_prefix + "/update/" + hostname + "/command"
         data["payload_install"] = "install"
-        data['release_url'] = "https://github.com/hjelev/rpi-mqtt-monitor/releases/tag/" + version
-        data['entity_picture'] = "https://raw.githubusercontent.com/hjelev/rpi-mqtt-monitor/refs/heads/master/images/update_icon.png"
+        data['release_url'] = "https://github.com/danmrossi/rpi-mqtt-monitor/releases/tag/" + version
+        data['entity_picture'] = "https://raw.githubusercontent.com/danmrossi/rpi-mqtt-monitor/refs/heads/master/images/update_icon.png"
         data['release_summary'] = get_release_notes(version)
     elif what_config == "restart_button":
         add_common_attributes(data, "mdi:restart", get_translation("system_restart"))
