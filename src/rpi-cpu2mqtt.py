@@ -651,13 +651,15 @@ def create_mqtt_client():
 
     return client
 
-def publish_update_status_to_mqtt(git_update, apt_updates):
-    client = create_mqtt_client()
+def publish_update_status_to_mqtt(git_update, apt_updates, client=None):
+    own_client = False
     if client is None:
-        logger.error("Error: Unable to connect to MQTT broker")
-        return
-
-    client.loop_start()
+        client = create_mqtt_client()
+        if client is None:
+            logger.error("Error: Unable to connect to MQTT broker")
+            return
+        client.loop_start()
+        own_client = True
     publish_infos = []
     if config.git_update:
         if config.discovery_messages:
@@ -690,8 +692,9 @@ def publish_update_status_to_mqtt(git_update, apt_updates):
     for info in publish_infos:
         info.wait_for_publish()
 
-    client.loop_stop()
-    client.disconnect()
+    if own_client:
+        client.loop_stop()
+        client.disconnect()
 
 
 def publish_to_hass_api(monitored_values):
@@ -735,12 +738,14 @@ def send_sensor_data_to_home_assistant(entity_id, state, attributes):
         logger.error("Error sending %s to Home Assistant: %s", entity_id, exc)
 
 
-def publish_to_mqtt(monitored_values):
-    client = create_mqtt_client()
+def publish_to_mqtt(monitored_values, client=None):
+    own_client = False
     if client is None:
-        return
-
-    client.loop_start()
+        client = create_mqtt_client()
+        if client is None:
+            return
+        client.loop_start()
+        own_client = True
     publish_infos = []
     non_standard_values = ['restart_button', 'shutdown_button', 'display_control', 'drive_temps', 'ext_sensors']
   # Publish standard monitored values
@@ -887,11 +892,12 @@ def publish_to_mqtt(monitored_values):
     for info in publish_infos:
         info.wait_for_publish()
 
-    client.loop_stop()
-    client.disconnect()
+    if own_client:
+        client.loop_stop()
+        client.disconnect()
 
 
-def bulk_publish_to_mqtt(monitored_values):
+def bulk_publish_to_mqtt(monitored_values, client=None):
     values = [monitored_values.get(key, 0) for key in [
         'cpu_load', 'cpu_temp', 'used_space', 'voltage', 'sys_clock_speed', 'swap', 'memory', 'uptime', 'uptime_seconds',
         'wifi_signal', 'wifi_signal_dbm', 'rpi5_fan_speed', 'git_update', 'rpi_power_status', 'data_sent', 'data_received'
@@ -901,19 +907,22 @@ def bulk_publish_to_mqtt(monitored_values):
     values.extend(sensor[3] for sensor in ext_sensors)
     values_str = ', '.join(map(str, values))
 
-    client = create_mqtt_client()
+    own_client = False
     if client is None:
-        return
-
-    client.loop_start()
+        client = create_mqtt_client()
+        if client is None:
+            return
+        client.loop_start()
+        own_client = True
     info = client.publish(
         config.mqtt_uns_structure + config.mqtt_topic_prefix + "/" + hostname,
         values_str, qos=config.qos, retain=config.retain)
 
     info.wait_for_publish()
 
-    client.loop_stop()
-    client.disconnect()
+    if own_client:
+        client.loop_stop()
+        client.disconnect()
 
 
 def parse_arguments():
@@ -1024,7 +1033,7 @@ def get_network_data():
     return round(data_sent, 2), round(data_received, 2)
 
 
-def gather_and_send_info():
+def gather_and_send_info(mqtt_client=None):
     while not stop_event.is_set():       
         monitored_values = collect_monitored_values()
 
@@ -1059,9 +1068,9 @@ def gather_and_send_info():
         else:
             if config.mqtt_host != "ip address or host":
                 if hasattr(config, 'group_messages') and config.group_messages:
-                    bulk_publish_to_mqtt(monitored_values)
+                    bulk_publish_to_mqtt(monitored_values, mqtt_client)
                 else:
-                    publish_to_mqtt(monitored_values)
+                    publish_to_mqtt(monitored_values, mqtt_client)
             else:
                 pass
         if not args.service:
@@ -1073,11 +1082,11 @@ def gather_and_send_info():
             time.sleep(1)
 
 
-def update_status():
+def update_status(mqtt_client=None):
     while not stop_event.is_set():
         git_update = check_git_update(script_dir)
         apt_updates = get_apt_updates()
-        publish_update_status_to_mqtt(git_update, apt_updates)
+        publish_update_status_to_mqtt(git_update, apt_updates, mqtt_client)
         stop_event.wait(config.update_check_interval)
         if stop_event.is_set():
             break
@@ -1174,10 +1183,10 @@ if __name__ == '__main__':
             logger.info("Listening to topic: %s/update/%s/command", config.mqtt_discovery_prefix, hostname)
 
         # 3. Start your metric‐gathering threads
-        thread1 = threading.Thread(target=gather_and_send_info, daemon=True)
+        thread1 = threading.Thread(target=gather_and_send_info, args=(client,), daemon=True)
         thread1.start()
         if not args.hass_api and config.update:
-            thread2 = threading.Thread(target=update_status, daemon=True)
+            thread2 = threading.Thread(target=update_status, args=(client,), daemon=True)
             thread2.start()
 
         # 4. Start the network loop in the background (handles reconnects automatically)
