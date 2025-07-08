@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# rpi-mqtt-monitor is a python script to monitor cpu load, temperature, frequency, free space etc.
+# rpi-mqtt-monitor-v2 is a python script to monitor cpu load, temperature, frequency, free space etc.
 # on a Raspberry Pi or Ubuntu computer and publish the data to a MQTT server or Home Assistant API.
 
 from __future__ import division
@@ -139,7 +139,7 @@ def check_rpi_power_status():
         return 'Error: ' + str(e)
 
 def check_service_file_exists():
-    service_file_path = "/etc/systemd/system/rpi-mqtt-monitor.service"
+    service_file_path = "/etc/systemd/system/rpi-mqtt-monitor-v2.service"
     return os.path.exists(service_file_path)
 
 
@@ -389,7 +389,7 @@ def check_all_drive_temps():
 
 def print_measured_values(monitored_values):
     remote_version = update.check_git_version_remote(script_dir)
-    output = """:: rpi-mqtt-monitor :: v {}
+    output = """:: rpi-mqtt-monitor-v2 :: v {}
 
 :: Device Information
    Model Name: {}
@@ -455,7 +455,7 @@ def extract_text(html_string):
 
 
 def get_release_notes(version):
-    url = "https://github.com/danmrossi/rpi-mqtt-monitor/releases/tag/" + version
+    url = "https://github.com/danmrossi/rpi-mqtt-monitor-v2/releases/tag/" + version
 
     try:
         response = subprocess.run(['curl', '-s', url], capture_output=True)
@@ -482,7 +482,7 @@ def build_device_info():
         "name": hostname,
         "sw_version": get_os(),
         "hw_version": f"{check_model_name()} by {get_manufacturer()} IP:{get_network_ip()}",
-        "configuration_url": "https://github.com/danmrossi/rpi-mqtt-monitor",
+        "configuration_url": "https://github.com/danmrossi/rpi-mqtt-monitor-v2",
         "connections": [["mac", get_mac_address()]]
     }
 
@@ -547,8 +547,8 @@ def handle_specific_configurations(data, what_config, device):
         data["value_template"] = "{{ {'installed_version': value_json.installed_ver, 'latest_version': value_json.new_ver } | to_json }}"
         data["command_topic"] = config.mqtt_discovery_prefix + "/update/" + hostname + "/command"
         data["payload_install"] = "install"
-        data['release_url'] = "https://github.com/danmrossi/rpi-mqtt-monitor/releases/tag/" + version
-        data['entity_picture'] = "https://raw.githubusercontent.com/danmrossi/rpi-mqtt-monitor/refs/heads/master/images/update_icon.png"
+        data['release_url'] = "https://github.com/danmrossi/rpi-mqtt-monitor-v2/releases/tag/" + version
+        data['entity_picture'] = "https://raw.githubusercontent.com/danmrossi/rpi-mqtt-monitor-v2/refs/heads/master/images/update_icon.png"
         data['release_summary'] = get_release_notes(version)
     elif what_config == "restart_button":
         add_common_attributes(data, "mdi:restart", get_translation("system_restart"))
@@ -631,7 +631,7 @@ def create_mqtt_client():
 
         # Persistent session + auto-re-subscribe on reconnect
     client = paho.Client(
-        client_id=f"rpi-mqtt-monitor-{hostname}-{int(time.time())}",
+        client_id=f"rpi-mqtt-monitor-v2-{hostname}-{int(time.time())}",
         clean_session=False
     )
     client.username_pw_set(config.mqtt_user, config.mqtt_password)
@@ -918,7 +918,7 @@ def bulk_publish_to_mqtt(monitored_values):
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        prog='rpi-mqtt-monitor',
+        prog='rpi-mqtt-monitor-v2',
         description='Monitor CPU Load, temperature, frequency, free space, etc., and publish the data to an MQTT server or Home Assistant API.'
     )
     parser.add_argument('-H', '--hass_api', action='store_true',  help='send readings via Home Assistant API (not via MQTT)', default=False)
@@ -927,7 +927,7 @@ def parse_arguments():
     parser.add_argument('-v', '--version',  action='store_true',  help='display installed version and exit', default=False)
     parser.add_argument('-u', '--update',   action='store_true',  help='update script and config then exit', default=False)
     parser.add_argument('-w', '--hass_wake', action='store_true', help='display Home assistant wake on lan configuration', default=False)
-    parser.add_argument('--uninstall', action='store_true', help='uninstall rpi-mqtt-monitor and remove all related files')
+    parser.add_argument('--uninstall', action='store_true', help='uninstall rpi-mqtt-monitor-v2 and remove all related files')
     args = parser.parse_args()
 
     if args.update:
