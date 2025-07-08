@@ -19,7 +19,7 @@ def sensor_DS18B20(sensor_id, verbose=False):
         # read temperature value and convert it
         stringvalue = filecontent.split("\n")[1].split(" ")[9]
         temperature = float(stringvalue[2:]) / 1000
-    except IOError as e:
+    except IOError:
         # if an error occurs, we return -300
         temperature = float(-300)
 
