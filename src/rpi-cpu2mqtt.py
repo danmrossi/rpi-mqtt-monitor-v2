@@ -1116,7 +1116,7 @@ def on_message(client, userdata, msg):
                 thread1.join()  # Wait for thread1 to finish
             if thread2 is not None:
                 thread2.join()  # Wait for thread2 to finish
-            os._exit(0)  # Exit the script immediately
+            sys.exit(0)  # Exit the script gracefully
 
         update_thread = threading.Thread(target=update_and_exit)
         update_thread.start()
