@@ -1,7 +1,7 @@
 #script config file
 config.py
 update.sh
-rpi-mqtt-monitor.iml
+rpi-mqtt-monitor-v2.iml
 <
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -142,4 +142,4 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
-rpi-mqtt-monitor/
+rpi-mqtt-monitor-v2/
