@@ -98,10 +98,6 @@ main(){
   cd rpi-mqtt-monitor-v2
   git pull
   bash install.sh
-  cwd=$(pwd)
-  sudo cp ${cwd}/rpi-mqtt-monitor-v2.service /etc/systemd/system/
-  sudo systemctl daemon-reload
-  sudo systemctl restart rpi-mqtt-monitor-v2.service
 }
 
 # Check for uninstall flag
