@@ -15,6 +15,8 @@ My variant of https://github.com/hjelev/rpi-mqtt-monitor as of v1.2.3 - A multit
 
 The easiest way to track your Raspberry Pi or Ubuntu computer system health and performance in Home Assistant.
 
+Python 3 is required to run this project.
+
 * Start Monitoring your System in just a few minutes
 * Monitor: CPU Load, CPU Temperature, Free Space, Used Memory, Swap Usage, Uptime, WFi Signal Quality, Network IO, Voltage, RPi Power Health, RPi5 Fan Speed, APT Updates available on HOST, External Sensors, HDD/SSD Temperature and System Clock Speed
 * Remotely Restart / Shutdown your system and control your monitors
@@ -40,12 +42,12 @@ Raspberry Pi MQTT Monitor will be installed in the location where the installer 
 The auto-installer needs the following software below and will install it if its not found:
 
 * git
-* python (2 or 3)
-* python-pip
+* python3
+* python3-pip
 * paho-mqtt (python module)
 * requests (python module)
 
-Only python is not automatically installed, the rest of the dependencies should be handled by the auto installation.
+Only Python 3 is not automatically installed, the rest of the dependencies should be handled by the auto installation.
 It will also help you configure the host and credentials for the mqtt server in config.py and create the service or cronjob configuration for you.
 It is recommended to run the script as a service, this way you can use the restart, shutdown and display control buttons in Home Assistant.
 
