@@ -44,10 +44,11 @@ The auto-installer needs the following software below and will install it if its
 * git
 * python3
 * python3-pip
+* python3-venv
 * paho-mqtt (python module)
 * requests (python module)
 
-Only Python 3 is not automatically installed, the rest of the dependencies should be handled by the auto installation.
+The auto-installer will attempt to install Python 3 and its required packages if they are missing.
 It will also help you configure the host and credentials for the mqtt server in config.py and create the service or cronjob configuration for you.
 It is recommended to run the script as a service, this way you can use the restart, shutdown and display control buttons in Home Assistant.
 

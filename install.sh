@@ -1,20 +1,18 @@
 #!/bin/bash
 find_python(){
-  if [[ $(python3 --version)  ]]; then 
-    python=$(which python3)
-    pip="python3-pip"
-    pip_run='pip3'
-  else
-    python=$(which python)
-    pip="python-pip"
-    pip_run='pip'
+  if ! command -v python3 >/dev/null 2>&1; then
+    print_yellow "Python 3 not found! Installing python3."
+    sudo apt-get update
+    sudo apt-get install -y python3 python3-pip python3-venv
   fi
 
-  if [[ "$python" == *"python"* ]]; then
+  if command -v python3 >/dev/null 2>&1; then
+    python=$(command -v python3)
+    pip_pkg="python3-pip"
+    pip_run='pip3'
     print_green "+ Found: $python"
-
   else
-    print_yellow "Python not found!\n Exiting\n"
+    print_yellow "Python 3 installation failed!\n Exiting\n"
     exit
   fi
 }
@@ -45,9 +43,9 @@ check_and_install_pip(){
   pip_ver=$(${python} -m pip --version 2>&1);
   if [[ "$pip_ver" == *"No"* ]]; then
     echo "- Pip is not installed, installing it."
-    sudo apt install $pip
-    else
-    print_green "+ Found: $pip"
+    sudo apt-get install -y $pip_pkg
+  else
+    print_green "+ Found: $pip_pkg"
   fi
 }
 
@@ -67,11 +65,7 @@ create_venv(){
 
   # Activate the virtual environment
   source rpi_mon_env/bin/activate
-  if [[ $(python3 --version)  ]]; then 
-    python=$(which python3)
-  else
-    python=$(which python)
-  fi
+  python=$(command -v python3)
   print_green "+ Activated virtual environment"
 }
 
