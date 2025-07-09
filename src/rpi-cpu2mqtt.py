@@ -643,11 +643,12 @@ def create_mqtt_client():
     client.reconnect_delay_set(min_delay=1, max_delay=120)
 
     try:
-        # blocking connect; loop_forever handles retries
-        client.connect(config.mqtt_host, int(config.mqtt_port), keepalive=60)
+        # Use async connect so the client will retry in the background
+        client.connect_async(config.mqtt_host, int(config.mqtt_port), keepalive=60)
     except Exception as e:
-        logger.error("Error connecting to MQTT broker: %s", e)
-        return None
+        # Even if the initial connection fails, return the client so it can
+        # keep retrying in the background when loop_start() is called.
+        logger.error("Error initiating MQTT connection: %s", e)
 
     return client
 
@@ -655,11 +656,15 @@ def publish_update_status_to_mqtt(git_update, apt_updates, client=None):
     own_client = False
     if client is None:
         client = create_mqtt_client()
-        if client is None:
-            logger.error("Error: Unable to connect to MQTT broker")
-            return
         client.loop_start()
         own_client = True
+
+    if not client.is_connected():
+        logger.warning("MQTT client not connected, skipping publish_update_status")
+        if own_client:
+            client.loop_stop()
+            client.disconnect()
+        return
     publish_infos = []
     if config.git_update:
         if config.discovery_messages:
@@ -690,7 +695,11 @@ def publish_update_status_to_mqtt(git_update, apt_updates, client=None):
 
 
     for info in publish_infos:
-        info.wait_for_publish()
+        try:
+            info.wait_for_publish()
+        except RuntimeError as e:
+            logger.error("Publish failed: %s", e)
+            break
 
     if own_client:
         client.loop_stop()
@@ -742,10 +751,15 @@ def publish_to_mqtt(monitored_values, client=None):
     own_client = False
     if client is None:
         client = create_mqtt_client()
-        if client is None:
-            return
         client.loop_start()
         own_client = True
+
+    if not client.is_connected():
+        logger.warning("MQTT client not connected, skipping publish")
+        if own_client:
+            client.loop_stop()
+            client.disconnect()
+        return
     publish_infos = []
     non_standard_values = ['restart_button', 'shutdown_button', 'display_control', 'drive_temps', 'ext_sensors']
   # Publish standard monitored values
@@ -890,7 +904,11 @@ def publish_to_mqtt(monitored_values, client=None):
                 monitored_values["data_received"], qos=config.qos, retain=config.retain))
     
     for info in publish_infos:
-        info.wait_for_publish()
+        try:
+            info.wait_for_publish()
+        except RuntimeError as e:
+            logger.error("Publish failed: %s", e)
+            break
 
     if own_client:
         client.loop_stop()
@@ -910,15 +928,23 @@ def bulk_publish_to_mqtt(monitored_values, client=None):
     own_client = False
     if client is None:
         client = create_mqtt_client()
-        if client is None:
-            return
         client.loop_start()
         own_client = True
+
+    if not client.is_connected():
+        logger.warning("MQTT client not connected, skipping bulk_publish")
+        if own_client:
+            client.loop_stop()
+            client.disconnect()
+        return
     info = client.publish(
         config.mqtt_uns_structure + config.mqtt_topic_prefix + "/" + hostname,
         values_str, qos=config.qos, retain=config.retain)
 
-    info.wait_for_publish()
+    try:
+        info.wait_for_publish()
+    except RuntimeError as e:
+        logger.error("Publish failed: %s", e)
 
     if own_client:
         client.loop_stop()
