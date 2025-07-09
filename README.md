@@ -11,6 +11,8 @@
   <img src="./images/rpi-mqtt-monitor-v2-2-min.png" alt="Raspberry Pi MQTT Monitor" />
 </p>
 
+My variant of https://github.com/hjelev/rpi-mqtt-monitor as of v1.2.3 - A multitude of stability fixes and coding improvements for running on various platforms.
+
 The easiest way to track your Raspberry Pi or Ubuntu computer system health and performance in Home Assistant.
 
 * Start Monitoring your System in just a few minutes
