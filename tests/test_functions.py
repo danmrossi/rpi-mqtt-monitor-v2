@@ -55,10 +55,10 @@ class TestFunctions(unittest.TestCase):
             self.assertEqual(version, 'v1.0')
             expected_calls = [
                 mock.call([
-                    '/usr/bin/git', '-C', '/tmp', 'fetch', '--tags'
+                    'git', '-C', '/tmp', 'fetch', '--tags'
                 ], check=True, stdout=mock.ANY, stderr=mock.ANY, text=True),
                 mock.call([
-                    '/usr/bin/git', '-C', '/tmp', 'tag', '--sort=-v:refname'
+                    'git', '-C', '/tmp', 'tag', '--sort=-v:refname'
                 ], check=True, stdout=mock.ANY, stderr=mock.ANY, text=True)
             ]
             m.assert_has_calls(expected_calls)

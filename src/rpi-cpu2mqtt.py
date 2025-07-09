@@ -313,8 +313,8 @@ def check_git_update(script_dir):
 
 def check_git_version(script_dir):
     try:
-        rev = subprocess.run(['/usr/bin/git', '-C', script_dir, 'rev-list', '--tags', '--max-count=1'], stdout=subprocess.PIPE, text=True, check=True).stdout.strip()
-        result = subprocess.run(['/usr/bin/git', '-C', script_dir, 'describe', '--tags', rev], stdout=subprocess.PIPE, text=True, check=True)
+        rev = subprocess.run(['git', '-C', script_dir, 'rev-list', '--tags', '--max-count=1'], stdout=subprocess.PIPE, text=True, check=True).stdout.strip()
+        result = subprocess.run(['git', '-C', script_dir, 'describe', '--tags', rev], stdout=subprocess.PIPE, text=True, check=True)
         git_version = result.stdout.strip()
     except subprocess.CalledProcessError as e:
         logger.error('Error getting git version: %s', e)

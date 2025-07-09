@@ -76,7 +76,7 @@ def check_git_version_remote(script_dir):
     """Return the newest tag from the remote repository."""
     try:
         subprocess.run(
-            ["/usr/bin/git", "-C", script_dir, "fetch", "--tags"],
+            ["git", "-C", script_dir, "fetch", "--tags"],
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -84,7 +84,7 @@ def check_git_version_remote(script_dir):
         )
 
         result = subprocess.run(
-            ["/usr/bin/git", "-C", script_dir, "tag", "--sort=-v:refname"],
+            ["git", "-C", script_dir, "tag", "--sort=-v:refname"],
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -129,7 +129,7 @@ def do_update(script_dir, version=config.version, git_update=True, config_update
     logger.info("Current version: %s", config.version)
     if git_update:
         logger.info("Updating git repository %s", script_dir)
-        result = subprocess.run(['/usr/bin/git', '-C', script_dir, 'pull'], check=True, text=True, stdout=subprocess.PIPE)
+        result = subprocess.run(['git', '-C', script_dir, 'pull'], check=True, text=True, stdout=subprocess.PIPE)
         logger.info(result.stdout)
         install_requirements(script_dir)
         
