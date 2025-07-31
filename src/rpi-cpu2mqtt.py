@@ -527,7 +527,7 @@ def handle_specific_configurations(data, what_config, device):
     elif what_config == "uptime_seconds":
         add_common_attributes(data, "mdi:timer-outline", get_translation("uptime"), "s", "duration", "total_increasing")
     elif what_config == "wifi_signal":
-        add_common_attributes(data, "mdi:wifi", get_translation("wifi_signal"), "%", "signal_strength", "measurement")
+        add_common_attributes(data, "mdi:wifi", get_translation("wifi_signal"), "%", "None", "measurement")
     elif what_config == "wifi_signal_dbm":
         add_common_attributes(data, "mdi:wifi", get_translation("wifi_signal_strength"), "dBm", "signal_strength", "measurement")
     elif what_config == "rpi5_fan_speed":
