@@ -639,6 +639,16 @@ def create_mqtt_client():
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
 
+    if config.mqtt_use_ssl:
+        logger.info("Configuring SSL/TLS")
+        client.tls_set(
+            ca_certs=config.mqtt_ca_certs or None,
+            certfile=config.mqtt_client_cert or None,
+            keyfile=config.mqtt_client_key or None,
+        #    tls_version=None,
+        #    ciphers=None
+        )
+
     # enable built-in backoff
     client.reconnect_delay_set(min_delay=1, max_delay=120)
 
