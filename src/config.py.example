@@ -11,6 +11,10 @@ mqtt_port = "1883"
 mqtt_discovery_prefix = "homeassistant"
 mqtt_topic_prefix = "rpi-MQTT-monitor-v2"
 mqtt_uns_structure = ""
+mqtt_use_ssl = False
+mqtt_ca_certs = ""
+mqtt_client_cert = ""
+mqtt_client_key = ""
 
 # Retain flag for published topics
 retain = True
